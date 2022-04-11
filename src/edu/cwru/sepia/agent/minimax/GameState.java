@@ -26,9 +26,9 @@ public class GameState {
 	public static double max = Double.POSITIVE_INFINITY;
 	public static double min = Double.NEGATIVE_INFINITY;
 	
-	private Map map;
-	private double xDim;
-	private double yDim;
+	private Cell[][] map;
+	private int xDim;
+	private int yDim;
 	//private map of agents
 	//private map of obstacles
 	
@@ -70,44 +70,49 @@ public class GameState {
      * @param state Current state of the episode
      */
     public GameState(State.StateView state) {
+    	
+		this.xDim = state.getXExtent();
+		this.yDim = state.getYExtent();
+		
+    	this.map = new Cell[xDim][yDim];
+    	
     	Map<Integer, Tree> trees = new HashMap<Integer, Tree>();
     	Map<Integer, Agent> agents = new HashMap<Integer, Agent>();
     	
-    	state.getAllResourceNodes().stream().forEach( (e) -> {
-    		Tree tree = new Tree(e.getID(), e.getXPosition(), e.getYPosition());
+    	state.getAllResourceNodes().stream().forEach( (t) -> {
+    		Tree tree = new Tree(t.getID(), t.getXPosition(), t.getYPosition());
+    		map[t.getXPosition()][t.getYPosition()] = tree;
+    		trees.put(tree.getId(), tree);
+    		
     		//System.out.println(tree.getX() + " " + tree.getY());
     	}
     	);
     	
     	state.getAllUnits().stream().forEach( (a) -> {
     		Agent agent = new Agent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), a.getTemplateView().getBaseHealth());
-    		System.out.println(agent.getX() + " " + agent.getY() + " HP:" + agent.getHp());
+    		agent.setPlayer(a.getTemplateView().getName().equals("Footman") ? 0 : 1);
+    		map[a.getXPosition()][a.getYPosition()] = agent;
+    		agents.put(agent.getId(), agent);
+    		
+    		System.out.println(a.getTemplateView().getName() + " " + agent.getPlayer());
+    		//System.out.println(agent.getX() + " " + agent.getY() + " HP:" + agent.getHp());
     	});
     	
+    	
     }
-    
-    private class Tree {
+
+    private class Tree extends Cell {
     	
     	private int id;
     	private int x;
     	private int y;
     	
     	public Tree(int id, int x, int y) {
-    		this.id = id;
-    		this.x = x;
-    		this.y = y;
-    	}
-    	
-    	public int getX() {
-    		return x;
-    	}
-    	
-    	public int getY() {
-    		return y;
+    		super(id, x, y);
     	}
     }
 
-    private class Agent {
+    private class Agent extends Cell{
     	
     	private int id;
     	private int x;
@@ -117,22 +122,15 @@ public class GameState {
     	private int atkRan;
     	private int hp;
     	
+    	//which player controls it?
+    	private int player;
+    	
     	public Agent(int id, int x, int y, int atkDmg, int atkRan, int hp) {
-    		this.id = id;
-    		this.x = x;
-    		this.y = y;
+    		super(id, x, y);
     		
     		this.atkDmg = atkDmg;
     		this.atkRan = atkRan;
     		this.hp = hp;
-    	}
-    	
-    	public int getX() {
-    		return x;
-    	}
-    	
-    	public int getY() {
-    		return y;
     	}
     	
     	public int getAtkDmg() {
@@ -149,6 +147,52 @@ public class GameState {
     	
     	public int getHp() {
     		return hp;
+    	}
+    	
+    	public int getPlayer() {
+    		return player;
+    	}
+    	
+    	public void setPlayer(int i) {
+    		this.player = i;
+    	}
+    }
+    
+    /**
+     * abstract representation of a single cell on the game map
+     * 
+     * @author Brian
+     */
+    private abstract class Cell {
+    	
+    	private int id;
+    	private int x;
+    	private int y;
+    	
+    	public Cell(int id, int x, int y) {
+    		this.id = id;;
+    		this.x = x;
+    		this.y = y;;
+    	}
+    	
+    	public int getId() {
+    		return id;
+    	}
+    	
+    	public int getX() {
+    		return x;
+    	}
+    	
+    	public int getY() {
+    		return y;
+    	}
+    	
+    	public void setX(int x) {
+    		this.x = x;
+    	}
+    	
+    	public void setY(int y) {
+    		this.y = y;
     	}
     }
     
@@ -214,5 +258,18 @@ public class GameState {
      */
     public List<GameStateChild> getChildren() {
         return null;
+    }
+    
+    /*
+     * utility function for confirming map data
+     */
+    private void printMap(Cell[][] map) {
+    	for (Cell[] cell : map) {
+    		for (Cell sell : cell) {
+    			if (sell != null) {
+    				System.out.println(sell.getId() + " at " + sell.getX() + " " + sell.getY());
+    			}
+    		}
+    	}
     }
 }
