@@ -32,8 +32,9 @@ public class GameState {
 	//private map of agents
 	//private map of obstacles
 	
-	
 	private double utility = 0;
+	
+	private Map<Integer, Agent> allAgents;
 	
     /**
      * You will implement this constructor. It will
@@ -94,11 +95,20 @@ public class GameState {
     		map[a.getXPosition()][a.getYPosition()] = agent;
     		agents.put(agent.getId(), agent);
     		
-    		System.out.println(a.getTemplateView().getName() + " " + agent.getPlayer());
-    		//System.out.println(agent.getX() + " " + agent.getY() + " HP:" + agent.getHp());
+    		System.out.print(a.getTemplateView().getName() + " (Player " + agent.getPlayer() + "), ID:" + agent.getId());
+    		System.out.print(" at (" + agent.getX() + ", " + agent.getY() + ") with HP:" + agent.getHp());
+    		System.out.println();
     	});
     	
     	
+    	allAgents = agents;
+    	
+    	for(Agent aa : allAgents.values()) {
+    		for(int aaa : canAttack(aa)) {
+    			System.out.print(aaa);
+    		}
+    		System.out.println();
+    	}
     }
 
     private class Tree extends Cell {
@@ -215,7 +225,12 @@ public class GameState {
      * @return The weighted linear combination of the features
      */
     public double getUtility() {
-        return 0.0;
+    	
+    	//weighted linear combination
+    	//start with most basic: distance from  archer
+    	//this.utility += 
+    	
+        return this.utility;
     }
 
     /**
@@ -257,7 +272,63 @@ public class GameState {
      * @return All possible actions and their associated resulting game state
      */
     public List<GameStateChild> getChildren() {
+    	
+    	
         return null;
+    }
+
+    /**
+     * to make life easier and since all agents will need to have actions evaluated,
+     * method to determine agent actions
+     * all agents have 5 choices: move in one of cardinal directions, or attack
+     * @param agent
+     * @return
+     */
+    private List<Action> agentAct(Agent agent) {
+    	
+    	List<Action> actions = new ArrayList<Action>();
+    	
+    	for(Direction direction : Direction.values()) {
+    		switch(direction) {
+    		case NORTH: case SOUTH: case EAST: case WEST:
+    			int x = agent.getX() + direction.xComponent();
+    			int y = agent.getY() + direction.yComponent();
+    			
+    			if (x >= 0 && y >= 0 && x < xDim && y < yDim && map[x][y] == null) {
+    				actions.add(Action.createPrimitiveMove(agent.getId(), direction));
+    			}
+    			break;
+    		}
+    	}
+    	//check if agent can attack
+    	for(int id : canAttack(agent)) {
+    		actions.add(Action.createPrimitiveAttack(agent.getId(), id));
+    	}
+    	
+    	return actions;
+    }
+    
+    private List<Integer> canAttack(Agent agent) {
+    	List<Integer> agents = new ArrayList<Integer>();
+    	
+    	for (Agent enemy : allAgents.values()) {
+    		//need to check that
+    		//1. enemy is actually an enemy; not same type (footman vs archer)
+    		//2. they are not the same agent
+    		//3. enemy is in agent's range
+    		if(enemy.getPlayer() != agent.getPlayer() && 
+    		   enemy.getId() != agent.getId() &&
+    		   //this is too complicated to just write here
+    		   Math.floor(distance(agent, enemy)) < agent.atkRan) {
+    			agents.add(enemy.getId());
+    		}
+    	}
+    	
+    	return agents;
+    }
+    
+    private double distance(Cell agent, Cell enemy) {
+    	return Math.sqrt(Math.pow(agent.getX() - enemy.getX(), 2.0) + Math.pow(agent.getY() - enemy.getY(), 2.0));
     }
     
     /*
