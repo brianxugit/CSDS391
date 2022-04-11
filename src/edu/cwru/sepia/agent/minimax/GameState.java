@@ -104,6 +104,7 @@ public class GameState {
     	allAgents = agents;
     	
     	for(Agent aa : allAgents.values()) {
+    		System.out.println(aa.getId() + " " + aa.atkRan + " " + aa.atkDmg);
     		for(int aaa : canAttack(aa)) {
     			System.out.print(aaa);
     		}
@@ -135,11 +136,11 @@ public class GameState {
     	//which player controls it?
     	private int player;
     	
-    	public Agent(int id, int x, int y, int atkDmg, int atkRan, int hp) {
+    	public Agent(int id, int x, int y, int atkRan, int atkDmg, int hp) {
     		super(id, x, y);
     		
-    		this.atkDmg = atkDmg;
     		this.atkRan = atkRan;
+    		this.atkDmg = atkDmg; 		
     		this.hp = hp;
     	}
     	
@@ -301,6 +302,11 @@ public class GameState {
     		}
     	}
     	//check if agent can attack
+    	//from observing the base config,
+    	//when the archer and footman occupy opposite corners of 7x7 square,
+    	//i expect distance to be that of sqrt(36 + 36), floored to 8, while archer range is 8
+    	//in the sim they attack, so my can attack function should be able to account for this
+    	//also why do footmen have a range of 5?
     	for(int id : canAttack(agent)) {
     		actions.add(Action.createPrimitiveAttack(agent.getId(), id));
     	}
@@ -318,8 +324,8 @@ public class GameState {
     		//3. enemy is in agent's range
     		if(enemy.getPlayer() != agent.getPlayer() && 
     		   enemy.getId() != agent.getId() &&
-    		   //this is too complicated to just write here
-    		   Math.floor(distance(agent, enemy)) < agent.atkRan) {
+    		   //this is too complicated so i need a distance function
+    		   Math.floor(distance(agent, enemy)) <= agent.atkRan) {
     			agents.add(enemy.getId());
     		}
     	}
