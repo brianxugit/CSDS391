@@ -10,6 +10,7 @@ import edu.cwru.sepia.environment.model.state.Unit;
 import edu.cwru.sepia.util.Direction;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.sun.source.tree.Tree;
 
@@ -34,7 +35,13 @@ public class GameState {
 	
 	private double utility = 0;
 	
+	//absolute state of confusion of what scope this should be
 	private Map<Integer, Agent> allAgents;
+	private ArrayList<Agent> allFootmen;
+	private ArrayList<Agent> allArchers;
+	
+	//need a variable to check if this gamestate is enemy turn or our turn...
+	//bool something
 	
     /**
      * You will implement this constructor. It will
@@ -72,6 +79,10 @@ public class GameState {
      */
     public GameState(State.StateView state) {
     	
+    	//band-aid data structure for now
+    	allFootmen = new ArrayList<Agent>();
+    	allArchers = new ArrayList<Agent>(); 
+    	
 		this.xDim = state.getXExtent();
 		this.yDim = state.getYExtent();
 		
@@ -90,19 +101,27 @@ public class GameState {
     	);
     	
     	state.getAllUnits().stream().forEach( (a) -> {
-    		Agent agent = new Agent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), a.getTemplateView().getBaseHealth());
+    		Agent agent = new Agent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP());
     		agent.setPlayer(a.getTemplateView().getName().equals("Footman") ? 0 : 1);
     		map[a.getXPosition()][a.getYPosition()] = agent;
     		agents.put(agent.getId(), agent);
+    		
+    		if(agent.getPlayer() == 0) {
+    			allFootmen.add(agent);
+    		}
+    		else {
+    			allArchers.add(agent);
+    		}
     		
     		System.out.print(a.getTemplateView().getName() + " (Player " + agent.getPlayer() + "), ID:" + agent.getId());
     		System.out.print(" at (" + agent.getX() + ", " + agent.getY() + ") with HP:" + agent.getHp());
     		System.out.println();
     	});
     	
-    	
+    	//temporary band-aid before i figure out how i want to structure all the data
     	allAgents = agents;
     	
+    	/*
     	for(Agent aa : allAgents.values()) {
     		System.out.println(aa.getId() + " " + aa.atkRan + " " + aa.atkDmg);
     		for(int aaa : canAttack(aa)) {
@@ -110,6 +129,9 @@ public class GameState {
     		}
     		System.out.println();
     	}
+    	*/
+    	
+    	System.out.println();
     }
 
     private class Tree extends Cell {
@@ -132,6 +154,7 @@ public class GameState {
     	private int atkDmg;
     	private int atkRan;
     	private int hp;
+    	private int potentialHp;
     	
     	//which player controls it?
     	private int player;
@@ -166,6 +189,18 @@ public class GameState {
     	
     	public void setPlayer(int i) {
     		this.player = i;
+    	}
+    	
+    	public void setPhp(int php) {
+    		this.potentialHp = php; //why do people dislike php? ive havent gotten to that part of cs yet
+    	}
+    	
+    	public int getPhp() { //i just think its funny
+    		return potentialHp;
+    	}
+    	
+    	public boolean alive() {
+    		return this.hp > 0;
     	}
     }
     
@@ -228,8 +263,13 @@ public class GameState {
     public double getUtility() {
     	
     	//weighted linear combination
+    	//a* would be nice but i somehow feel that would be too complicated
+    	//but how else should the footman find its path?
     	//start with most basic: distance from  archer
     	//this.utility += 
+    	
+    	//a useful utility will be the expected hp of any given agent
+    	//that is, if they are in attackable range, consider the potential hp loss
     	
         return this.utility;
     }
@@ -281,7 +321,7 @@ public class GameState {
     /**
      * to make life easier and since all agents will need to have actions evaluated,
      * method to determine agent actions
-     * all agents have 5 choices: move in one of cardinal directions, or attack
+     * all agents have 5 choices: move in one of cardinal directions, or attack--no diagonals
      * @param agent
      * @return
      */
@@ -306,7 +346,7 @@ public class GameState {
     	//when the archer and footman occupy opposite corners of 7x7 square,
     	//i expect distance to be that of sqrt(36 + 36), floored to 8, while archer range is 8
     	//in the sim they attack, so my can attack function should be able to account for this
-    	//also why do footmen have a range of 5?
+    	//it also seems that the archer dmg value is randomized in its dmg range
     	for(int id : canAttack(agent)) {
     		actions.add(Action.createPrimitiveAttack(agent.getId(), id));
     	}
@@ -335,6 +375,15 @@ public class GameState {
     
     private double distance(Cell agent, Cell enemy) {
     	return Math.sqrt(Math.pow(agent.getX() - enemy.getX(), 2.0) + Math.pow(agent.getY() - enemy.getY(), 2.0));
+    }
+    
+    //it turns out that constantly checking allFootmen.size() > 0 is annoying...
+    public Collection<Agent> getLivingFootmen() {
+    	return allFootmen.stream().filter(a -> (a.alive())).collect(Collectors.toList());
+    }
+    
+    public Collection<Agent> getLivingArchers() {
+    	return allArchers.stream().filter(a -> (a.alive())).collect(Collectors.toList());
     }
     
     /*
