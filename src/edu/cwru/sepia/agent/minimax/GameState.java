@@ -33,12 +33,17 @@ public class GameState {
 	//private map of agents
 	//private map of obstacles
 	
+	private boolean playerTurn; //true for footmen, false for archers
+	
 	private double utility = 0;
 	
 	//absolute state of confusion of what scope this should be
+	//allagents: id, agent
 	private Map<Integer, Agent> allAgents;
 	private ArrayList<Agent> allFootmen;
 	private ArrayList<Agent> allArchers;
+	
+	private State.StateView stateBandAid; //sweet jesus is this a terrible idea
 	
 	//need a variable to check if this gamestate is enemy turn or our turn...
 	//bool something
@@ -78,6 +83,8 @@ public class GameState {
      * @param state Current state of the episode
      */
     public GameState(State.StateView state) {
+    	
+    	stateBandAid = state;
     	
     	//band-aid data structure for now
     	allFootmen = new ArrayList<Agent>();
@@ -132,6 +139,12 @@ public class GameState {
     	*/
     	
     	System.out.println();
+    }
+    
+    //secondary constructor...
+    //
+    public GameState(GameState gameState) {
+    	
     }
 
     private class Tree extends Cell {
@@ -266,12 +279,26 @@ public class GameState {
     	//a* would be nice but i somehow feel that would be too complicated
     	//but how else should the footman find its path?
     	//start with most basic: distance from  archer
-    	//this.utility += 
+    	//this would immediately cause an issue given how the map is designed but let's just see how it interacts
+    	//the plan afterwards is to implement a* and use path length as a heuristic
+    	this.utility += enemyDistanceUtility();
     	
     	//a useful utility will be the expected hp of any given agent
     	//that is, if they are in attackable range, consider the potential hp loss
     	
         return this.utility;
+    }
+    
+    private double enemyDistanceUtility() {
+    	double utility = 0.0;
+    	
+    	for(Agent footman : getLivingFootmen()) {
+    		for(Agent archer : getLivingArchers()) {
+    			utility = Math.min(distance(footman, archer), utility);
+    		}
+    	}
+    	
+    	return utility;
     }
 
     /**
@@ -314,8 +341,93 @@ public class GameState {
      */
     public List<GameStateChild> getChildren() {
     	
+    	//ok well i made the alpha beta system but theres no way to get children yet so its always null
+    	//here we go i guess
     	
-        return null;
+    	//so like
+    	//well there's exactly up to 5 children for each agent, 4 move states and 1 atk state
+    	//we need to choose between the footmen and archers for computing gamestate moves given a turn
+    	//naively i hoped playernum would be useful but not for this...
+    	
+    	//choose between footmen and archers
+    	Collection<Agent> agents = playerTurn ? this.getLivingFootmen() : this.getLivingArchers();
+    	
+    	//collect actions per agent into a list
+    	//given an agent, agentActions() returns a list of actions that agent can do
+    	List<List<Action>> agentActions = agents.stream().map(a -> agentActions(a)).collect(Collectors.toList());
+    	//we only have 2 agents so the result is the list agentActions.get(0) and agentActions.get(1) for each one
+    	
+    	//now we want to combine these actions to form up to 25 pairs of actions
+    	//make action combos for gamestates
+    	//mercy on my names
+    	List<Map<Integer, Action>> actionListList = new ArrayList<Map<Integer, Action>>();
+    	
+    	for(Action act1 : agentActions.get(0)) {
+    		if(agentActions.size() == 1) {
+    			Map<Integer, Action> actionList = new HashMap<Integer, Action>();
+    			actionList.put(act1.getUnitId(), act1);
+    			actionListList.add(actionList);
+    		} else {
+    			for(Action act2 : agentActions.get(1)) {
+    				Map<Integer, Action> actionList = new HashMap<Integer, Action>();
+    				actionList.put(act1.getUnitId(), act1);
+    				actionList.put(act2.getUnitId(), act2);
+    				actionListList.add(actionList);
+    			}
+    		}
+    	}
+    	
+    	//now the tricky part... create gamestates associated with each action outcome
+    	//the document explicitly says not to use sepia's state cloning feature...
+    	//so my initial hope of making several copies of the gamestate,
+    	//then applying all relevant actions is completely useless...
+    	//the current gamestate constructor uses some stateview state so let's try to use that
+    	List<GameStateChild> children = new ArrayList<GameStateChild>(25);
+    	for(Map<Integer, Action> actionList : actionListList) {
+    		GameState child = new GameState(stateBandAid); //holy cow is this a bad idea
+    		for(Action action : actionList.values()) {
+    			child.applyAction(action);
+    		}
+    	}
+    	
+    	//the amount of band-aids on this code is extremely alarming
+    	//and i havent even done heuristic data collection and calcualtion yet
+    	
+        return children;
+    }
+    
+    private void applyAction(Action action) {
+    	if(action.getType() == ActionType.PRIMITIVEATTACK) {
+    		TargetedAction tarAction = (TargetedAction) action;
+    		
+    		Agent atker = this.allAgents.get(tarAction.getUnitId());
+    		Agent atked = this.allAgents.get(tarAction.getTargetId());
+    		
+    		this.attack(atker, atked);
+    		
+    	} else { //actiontype.primitivemove
+    		DirectedAction dirAction = (DirectedAction) action;
+    		
+    		this.move(this.allAgents.get(dirAction.getUnitId()), 
+    				  dirAction.getDirection().xComponent(),
+    				  dirAction.getDirection().yComponent());
+    	}
+    }
+    
+    private void move(Agent agent, int x, int y) {
+    	int nextX = agent.getX() + x;
+    	int nextY = agent.getY() + y;
+    	
+    	this.map[agent.getX()][agent.getY()] = null;
+    	
+    	agent.setX(nextX);
+    	agent.setY(nextY);
+    	
+    	this.map[nextX][nextY] = agent;
+    }
+    
+    private void attack(Agent atker, Agent atked) {
+    	atked.setHp(atked.getHp() - atker.getAtkDmg());
     }
 
     /**
@@ -325,7 +437,7 @@ public class GameState {
      * @param agent
      * @return
      */
-    private List<Action> agentAct(Agent agent) {
+    private List<Action> agentActions(Agent agent) {
     	
     	List<Action> actions = new ArrayList<Action>();
     	
@@ -354,6 +466,7 @@ public class GameState {
     	return actions;
     }
     
+    //who can i attack?
     private List<Integer> canAttack(Agent agent) {
     	List<Integer> agents = new ArrayList<Integer>();
     	

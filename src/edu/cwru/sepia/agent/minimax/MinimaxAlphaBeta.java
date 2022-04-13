@@ -1,14 +1,18 @@
 package edu.cwru.sepia.agent.minimax;
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionType;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
 import edu.cwru.sepia.environment.model.state.State;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import java.util.Comparator;
 
 public class MinimaxAlphaBeta extends Agent {
 
@@ -74,11 +78,57 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public GameStateChild alphaBetaSearch(GameStateChild node, int depth, double alpha, double beta)
     {
+    	//at a particular state we have gamestate.getutility() for utility
+    	//we also need to know which state we are at, aka max player vs min enemy
     	
+    	//make sure that when depth = 0 to stop looking
+    	boolean turn = true;//temp
     	
-        return node;
+
+    	
+    	double val = maximize(node, depth, alpha, beta);
+    	
+    	//find val node
+    	
+    	for(GameStateChild child : node.state.getChildren()) {
+    		if(child.state.getUtility() == val) return child;
+    	}
+    	
+    	//sometimes you just dont succeed so lets just stay in place until something works
+    	return node;
     }
 
+    //methods to circumvent the need for player tracking variable
+    private double maximize(GameStateChild node, int depth, double alpha, double beta) {
+    	double max = Double.NEGATIVE_INFINITY; //init to min
+    	
+    	for(GameStateChild child : orderChildrenWithHeuristics(node.state.getChildren())) {
+    		
+    		max = Math.max(max, minimize(child, depth - 1, alpha, beta));
+    		
+    		if(max >= beta) return max;
+    		
+    		alpha = Math.max(max, alpha);
+    	}
+    	
+    	return max;
+    }
+    
+    private double minimize(GameStateChild node, int depth, double alpha, double beta) {
+    	double min = Double.POSITIVE_INFINITY; //you know the drill
+    	
+    	for(GameStateChild child : orderChildrenWithHeuristics(node.state.getChildren())) {
+    		
+    		min = Math.min(min, maximize(child, depth - 1, alpha, beta));
+    		
+    		if(min <= alpha) return min;
+    		
+    		beta = Math.min(min, beta);
+    	}
+    	
+    	return min;
+    }
+    
     /**
      * You will implement this.
      *
@@ -94,6 +144,48 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public List<GameStateChild> orderChildrenWithHeuristics(List<GameStateChild> children)
     {
-        return children;
+    	//goal is to kill archer
+    	//attack is highest priority, so we want to get as many as possible
+    	//so simple hierarchy is
+    	//n attacks > 1 attack > no attacks
+    	
+    	List<GameStateChild> orderedChildren = new ArrayList<GameStateChild>();
+    	List<GameStateChild> orderedMoves = new ArrayList<GameStateChild>();
+    	
+    	for(GameStateChild child : children) {
+    		int atks = 0;
+    		
+    		for(Action action : child.action.values()) {
+    			if(action.getType() == ActionType.PRIMITIVEATTACK) {
+    				atks++;
+    			}
+    		}
+    		
+    		if(atks == child.action.size()) {
+    			orderedChildren.add(0, child);   		
+    		} else if (atks > 0) {
+    			if(orderedChildren.isEmpty()) orderedChildren.add(0, child);
+    			else orderedChildren.add(1, child);
+    		} else {
+    			orderedMoves.add(child);
+    		}
+    	}
+    	
+    	orderedMoves.sort(new Comparator<GameStateChild>() {
+    		@Override
+    		public int compare(GameStateChild o1, GameStateChild o2) {
+    	    	if(o1.state.getUtility() > o2.state.getUtility()) return 1;
+    	    	else if (o1.state.getUtility() < o2.state.getUtility()) return -1;
+    	    	else return 0;
+    	    }
+    	});
+    	orderedChildren.addAll(orderedMoves); //append movement options
+    	
+        return orderedChildren;
     }
+    
+    
+    
+    
+    
 }
