@@ -238,15 +238,16 @@ public class AstarAgent extends Agent {
     	//naive check of into next 5 steps of path to see if footman is blocking
     	
     	//make a copy of path for viewing
-    	Stack<MapLocation> path = (Stack<MapLocation>) currentPath.clone();
-    	for(int i = 0; i < 5; i++) {
-    		MapLocation curr = path.pop();
+    	Stack<MapLocation> currPath = (Stack<MapLocation>) currentPath.clone();
+    	int n = currPath.size();
+    	for(int i = 0; i < n; i++) {
+    		MapLocation curr = currPath.pop();
     		if(curr.x == enemyX && curr.y == enemyY) {
-    			System.out.println("true");
+    			//System.out.println("true");
     			return true;
     		}
     	}
-    	System.out.println("false");
+    	//System.out.println("false");
         return false;
     }
 
@@ -348,7 +349,7 @@ public class AstarAgent extends Agent {
     		}
     	}
     	
-    	//generate initial cells
+    	//relevant cells
     	Map[start.x][start.y] = start;
     	Map[goal.x][goal.y] = goal;
     	goal.passable = true;
@@ -356,7 +357,7 @@ public class AstarAgent extends Agent {
     		System.out.println("Resource at: " + obs.x + ", " + obs.y);
     		Map[obs.x][obs.y].passable = false;
     	}
-    	Map[enemyFootmanLoc.x][enemyFootmanLoc.y].passable = false;
+    	if(enemyFootmanLoc != null) Map[enemyFootmanLoc.x][enemyFootmanLoc.y].passable = false;
     	
     	    	
     	PriorityQueue<MapLocation> openSet = new PriorityQueue<>();
@@ -395,13 +396,12 @@ public class AstarAgent extends Agent {
     	//exit for no available path
     	if(!closedSet.contains(goal)) {
     		System.out.println("No available path");
-    		//System.exit(0);
+    		System.exit(0);
     	}
     	
     	//reconstruct path from goal
-    	MapLocation curr = goal;
-    	path.add(goal);
-    	while(curr != start) {
+    	MapLocation curr = goal.cameFrom; 	//do not include the goal in path
+    	while(curr != start) {				//do not include the start in path
     		path.add(curr);
     		curr = curr.cameFrom;
     	}
@@ -422,7 +422,7 @@ public class AstarAgent extends Agent {
     		System.err.println("No MapLocation(s) specified");
     		return Float.MAX_VALUE;
     	}
-    	return Math.max(Math.abs(goal.y - curr.y), Math.abs(goal.x - curr.x));
+    	return Math.max(Math.abs(goal.y - curr.y), Math.abs(goal.x - curr.x)) - 1;
     }
     
     /**
@@ -466,12 +466,10 @@ public class AstarAgent extends Agent {
     				
     				System.out.print(" Attempt to add neighbor: " + nextX + ", " + nextY);
     				
-    				if (map[nextX][nextY] == null) {
-    					//contingency that should never happen
-    					map[nextX][nextY] = new MapLocation(nextX, nextY, null, 0);
-    				}
+    				//contingency that should never happen
+    				if (map[nextX][nextY] == null) map[nextX][nextY] = new MapLocation(nextX, nextY, null, 0);
+    				
     				neighbors.add(map[nextX][nextY]);
-    				//System.out.println(map[nextX][nextY].passable);
     			}
     		}
     	}
