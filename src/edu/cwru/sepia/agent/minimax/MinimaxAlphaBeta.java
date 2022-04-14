@@ -78,13 +78,9 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public GameStateChild alphaBetaSearch(GameStateChild node, int depth, double alpha, double beta)
     {
+    	System.out.println("alpha beta is happening");
     	//at a particular state we have gamestate.getutility() for utility
     	//we also need to know which state we are at, aka max player vs min enemy
-    	
-    	//make sure that when depth = 0 to stop looking
-    	boolean turn = true;//temp
-    	
-
     	
     	double val = maximize(node, depth, alpha, beta);
     	
@@ -110,7 +106,7 @@ public class MinimaxAlphaBeta extends Agent {
     		
     		alpha = Math.max(max, alpha);
     	}
-    	
+    	System.out.println("max: " + max);
     	return max;
     }
     
@@ -125,7 +121,7 @@ public class MinimaxAlphaBeta extends Agent {
     		
     		beta = Math.min(min, beta);
     	}
-    	
+    	System.out.println("min: " + min);
     	return min;
     }
     
@@ -151,6 +147,8 @@ public class MinimaxAlphaBeta extends Agent {
     	
     	List<GameStateChild> orderedChildren = new ArrayList<GameStateChild>();
     	List<GameStateChild> orderedMoves = new ArrayList<GameStateChild>();
+    	
+    	System.out.println("node expansion size: " + children.size());
     	
     	for(GameStateChild child : children) {
     		int atks = 0;

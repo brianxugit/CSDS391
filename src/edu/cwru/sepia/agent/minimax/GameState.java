@@ -27,23 +27,33 @@ public class GameState {
 	public static double max = Double.POSITIVE_INFINITY;
 	public static double min = Double.NEGATIVE_INFINITY;
 	
-	private Cell[][] map;
-	private int xDim;
-	private int yDim;
-	//private map of agents
-	//private map of obstacles
+	//im tempted to store a* path information as a static list
+	//the only time a path between 2 cells could possibly change is if somehow an agent is on one of those tiles
+	//while that's very possible it's also very unlikely to have a pronounced outcome on the path
+	//therefore a map of < start cell + goal cell , path info > would be a solution
+	//to avoid constant recalculations of a*
+	//thing is, we aren't doing true a*
+	//that is, we simply want to compute the path length and use that to inform our main heuristic
+	
+	private static Map<Integer, Integer> paths = new HashMap<Integer, Integer>();
+	//here's the idea
+	//given a starting cell, 01, 01, and goal cell, 11, 11
+	//key is concatenation 01011111, path info is simply computed path length
+	//01011111 returns equivalent to 11110101 so i guess i'll just write to the map twice when computing a path
+	//also i have no idea if this is the proper way to instantiate the static map but worst case it's just as if i didnt have it
+	
+	private World world;
+	
+	//private Cell[][] map;
+	//private int xDim;
+	//private int yDim;
+
 	
 	private boolean playerTurn; //true for footmen, false for archers
+	//alright so now this thing needs to alternate every time
+	//aka when gamestate constructor happens it needs to flip...
 	
 	private double utility = 0;
-	
-	//absolute state of confusion of what scope this should be
-	//allagents: id, agent
-	private Map<Integer, Agent> allAgents;
-	private ArrayList<Agent> allFootmen;
-	private ArrayList<Agent> allArchers;
-	
-	private State.StateView stateBandAid; //sweet jesus is this a terrible idea
 	
 	//need a variable to check if this gamestate is enemy turn or our turn...
 	//bool something
@@ -83,68 +93,124 @@ public class GameState {
      * @param state Current state of the episode
      */
     public GameState(State.StateView state) {
-    	
-    	stateBandAid = state;
-    	
-    	//band-aid data structure for now
-    	allFootmen = new ArrayList<Agent>();
-    	allArchers = new ArrayList<Agent>(); 
-    	
-		this.xDim = state.getXExtent();
-		this.yDim = state.getYExtent();
-		
-    	this.map = new Cell[xDim][yDim];
-    	
-    	Map<Integer, Tree> trees = new HashMap<Integer, Tree>();
-    	Map<Integer, Agent> agents = new HashMap<Integer, Agent>();
-    	
+    	this.world = new World(state.getXExtent(), state.getYExtent());
+
     	state.getAllResourceNodes().stream().forEach( (t) -> {
-    		Tree tree = new Tree(t.getID(), t.getXPosition(), t.getYPosition());
-    		map[t.getXPosition()][t.getYPosition()] = tree;
-    		trees.put(tree.getId(), tree);
-    		
-    		//System.out.println(tree.getX() + " " + tree.getY());
-    	}
-    	);
+    		this.world.addTree(t.getID(), t.getXPosition(), t.getYPosition());
+    	});
     	
     	state.getAllUnits().stream().forEach( (a) -> {
-    		Agent agent = new Agent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP());
-    		agent.setPlayer(a.getTemplateView().getName().equals("Footman") ? 0 : 1);
-    		map[a.getXPosition()][a.getYPosition()] = agent;
-    		agents.put(agent.getId(), agent);
+    		//jesus
+    		this.world.addAgent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP(), a.getTemplateView().getName().equals("Footman") ? 0 : 1);		
+    	});
+    	
+    	playerTurn = true;
+    }
+    
+    //secondary constructor...
+    //
+    public GameState(GameState gameState) {
+    	//i give up im making a secondary gamestate constructor
+    	//the first one, which takes in a pure state, needs playerTurn = true
+    	//all subsequent ones need playerTurn = !playerTurn
+    	//which means adding new conditions to the existing constructor or just making another
+    	//but now it's too unwieldy to copy all the initialization code for the map
+    	//so i need to give that an independent method
+    	//and now everything needs to be refactored
+    	//ahfuosdfuoahuoga
+    	
+    	//with this it might be time to set up a proper structure of data
+    	//the highest is the sepia state, which gamestate takes as parameter
+    	//the most important piece of data in a gamestate is the map
+    	//on the map holds all the agents and resources
+    	//so let's have a map class
+    	//no that's a terrible idea, map is already defined in java
+    	
+    	//that means a TON of methods have to be moved into the World class
+    	
+    	this.world = new World(gameState.world.xDim, gameState.world.yDim); //i have no idea why this is legal
+    	
+    	gameState.world.trees.values().stream().forEach( (t) -> {
+    		this.world.addTree(t.getId(), t.getX(), t.getY());
+    	});
+    	
+    	gameState.world.agents.values().stream().forEach( (a) -> {
+    		this.world.addAgent(a.getId(), a.getX(), a.getY(), a.getAtkRan(), a.getAtkDmg(), a.getHp(), a.getPlayer());
+    	});
+    	
+    	this.playerTurn = !gameState.playerTurn;
+    	
+    }
+    
+    private class World {
+    	private int xDim;
+    	private int yDim;
+    	//i just want to call you map, why does map have to be a data structure?
+    	private Cell[][] map;
+    	
+    	private ArrayList<Agent> allFootmen = new ArrayList<Agent>();
+    	private ArrayList<Agent> allArchers = new ArrayList<Agent>();
+    	
+    	private Map<Integer, Tree> trees = new HashMap<Integer, Tree>();
+    	private Map<Integer, Agent> agents = new HashMap<Integer, Agent>();
+    	
+    	public World(int x, int y) {
+    		this.xDim = x;
+    		this.yDim = y;
     		
+        	this.map = new Cell[xDim][yDim];
+        	     	
+        	/*
+        	for(Agent aa : allAgents.values()) {
+        		System.out.println(aa.getId() + " " + aa.atkRan + " " + aa.atkDmg);
+        		for(int aaa : canAttack(aa)) {
+        			System.out.print(aaa);
+        		}
+        		System.out.println();
+        	}
+        	*/
+    	}
+        
+    	public void addTree(int id, int x, int y) {
+    		Tree tree = new Tree(id, x, y);
+    		map[x][y] = tree;
+    		trees.put(tree.getId(), tree);
+    	}
+    	
+    	public void addAgent(int id, int x, int y, int range, int dmg, int hp, int player) {
+    		Agent agent = new Agent(id, x, y, range, dmg, hp); 
+    		agent.setPlayer(player); //ew
+    		map[x][y] = agent;
+    		agents.put(agent.getId(), agent);
     		if(agent.getPlayer() == 0) {
     			allFootmen.add(agent);
     		}
     		else {
     			allArchers.add(agent);
     		}
-    		
-    		System.out.print(a.getTemplateView().getName() + " (Player " + agent.getPlayer() + "), ID:" + agent.getId());
+    		/*
+    		System.out.print("(Player " + agent.getPlayer() + "), ID:" + agent.getId());
     		System.out.print(" at (" + agent.getX() + ", " + agent.getY() + ") with HP:" + agent.getHp());
     		System.out.println();
-    	});
-    	
-    	//temporary band-aid before i figure out how i want to structure all the data
-    	allAgents = agents;
-    	
-    	/*
-    	for(Agent aa : allAgents.values()) {
-    		System.out.println(aa.getId() + " " + aa.atkRan + " " + aa.atkDmg);
-    		for(int aaa : canAttack(aa)) {
-    			System.out.print(aaa);
-    		}
-    		System.out.println();
+    		*/
     	}
-    	*/
     	
-    	System.out.println();
-    }
-    
-    //secondary constructor...
-    //
-    public GameState(GameState gameState) {
-    	
+        public boolean validCell(int x, int y) {
+        	return x >= 0 && y >= 0 && x < xDim && y < yDim;
+        }
+        
+        private double distance(Cell agent, Cell enemy) {
+        	return Math.sqrt(Math.pow(agent.getX() - enemy.getX(), 2.0) + Math.pow(agent.getY() - enemy.getY(), 2.0));
+        }
+        
+        public Collection<Agent> getLivingFootmen() {
+        	return allFootmen.stream().filter(a -> (a.alive())).collect(Collectors.toList());
+        }
+        
+        public Collection<Agent> getLivingArchers() {
+        	return allArchers.stream().filter(a -> (a.alive())).collect(Collectors.toList());
+        }
+        
     }
 
     private class Tree extends Cell {
@@ -285,16 +351,16 @@ public class GameState {
     	
     	//a useful utility will be the expected hp of any given agent
     	//that is, if they are in attackable range, consider the potential hp loss
-    	
+    	System.out.println("utility: " + this.utility);
         return this.utility;
     }
     
     private double enemyDistanceUtility() {
     	double utility = 0.0;
     	
-    	for(Agent footman : getLivingFootmen()) {
-    		for(Agent archer : getLivingArchers()) {
-    			utility = Math.min(distance(footman, archer), utility);
+    	for(Agent footman : world.getLivingFootmen()) {
+    		for(Agent archer : world.getLivingArchers()) {
+    			utility = Math.min(world.distance(footman, archer), utility);
     		}
     	}
     	
@@ -350,16 +416,27 @@ public class GameState {
     	//naively i hoped playernum would be useful but not for this...
     	
     	//choose between footmen and archers
-    	Collection<Agent> agents = playerTurn ? this.getLivingFootmen() : this.getLivingArchers();
+    	Collection<Agent> agents = playerTurn ? this.world.getLivingFootmen() : this.world.getLivingArchers();
+    	
+    	System.out.println(playerTurn);
     	
     	//collect actions per agent into a list
     	//given an agent, agentActions() returns a list of actions that agent can do
+    	
     	List<List<Action>> agentActions = agents.stream().map(a -> agentActions(a)).collect(Collectors.toList());
+    	
+    	System.out.println("listlistaction: " + agentActions.size());
+    	
     	//we only have 2 agents so the result is the list agentActions.get(0) and agentActions.get(1) for each one
     	
     	//now we want to combine these actions to form up to 25 pairs of actions
     	//make action combos for gamestates
     	//mercy on my names
+    	
+    	
+    	System.out.println("find my children");
+    	
+    	
     	List<Map<Integer, Action>> actionListList = new ArrayList<Map<Integer, Action>>();
     	
     	for(Action act1 : agentActions.get(0)) {
@@ -382,9 +459,10 @@ public class GameState {
     	//so my initial hope of making several copies of the gamestate,
     	//then applying all relevant actions is completely useless...
     	//the current gamestate constructor uses some stateview state so let's try to use that
+    	
     	List<GameStateChild> children = new ArrayList<GameStateChild>(25);
     	for(Map<Integer, Action> actionList : actionListList) {
-    		GameState child = new GameState(stateBandAid); //holy cow is this a bad idea
+    		GameState child = new GameState(this); //ive removed the band-aid and now its not terrible
     		for(Action action : actionList.values()) {
     			child.applyAction(action);
     		}
@@ -396,42 +474,7 @@ public class GameState {
         return children;
     }
     
-    private void applyAction(Action action) {
-    	if(action.getType() == ActionType.PRIMITIVEATTACK) {
-    		TargetedAction tarAction = (TargetedAction) action;
-    		
-    		Agent atker = this.allAgents.get(tarAction.getUnitId());
-    		Agent atked = this.allAgents.get(tarAction.getTargetId());
-    		
-    		this.attack(atker, atked);
-    		
-    	} else { //actiontype.primitivemove
-    		DirectedAction dirAction = (DirectedAction) action;
-    		
-    		this.move(this.allAgents.get(dirAction.getUnitId()), 
-    				  dirAction.getDirection().xComponent(),
-    				  dirAction.getDirection().yComponent());
-    	}
-    }
-    
-    private void move(Agent agent, int x, int y) {
-    	int nextX = agent.getX() + x;
-    	int nextY = agent.getY() + y;
-    	
-    	this.map[agent.getX()][agent.getY()] = null;
-    	
-    	agent.setX(nextX);
-    	agent.setY(nextY);
-    	
-    	this.map[nextX][nextY] = agent;
-    }
-    
-    private void attack(Agent atker, Agent atked) {
-    	atked.setHp(atked.getHp() - atker.getAtkDmg());
-    }
-
-    /**
-     * to make life easier and since all agents will need to have actions evaluated,
+    /* to make life easier and since all agents will need to have actions evaluated,
      * method to determine agent actions
      * all agents have 5 choices: move in one of cardinal directions, or attack--no diagonals
      * @param agent
@@ -447,7 +490,7 @@ public class GameState {
     			int x = agent.getX() + direction.xComponent();
     			int y = agent.getY() + direction.yComponent();
     			
-    			if (x >= 0 && y >= 0 && x < xDim && y < yDim && map[x][y] == null) {
+    			if (this.world.validCell(x, y) && this.world.map[x][y] == null) {
     				actions.add(Action.createPrimitiveMove(agent.getId(), direction));
     			}
     			break;
@@ -466,11 +509,11 @@ public class GameState {
     	return actions;
     }
     
-    //who can i attack?
+  //who can i attack?
     private List<Integer> canAttack(Agent agent) {
     	List<Integer> agents = new ArrayList<Integer>();
     	
-    	for (Agent enemy : allAgents.values()) {
+    	for (Agent enemy : this.world.agents.values()) {
     		//need to check that
     		//1. enemy is actually an enemy; not same type (footman vs archer)
     		//2. they are not the same agent
@@ -478,7 +521,7 @@ public class GameState {
     		if(enemy.getPlayer() != agent.getPlayer() && 
     		   enemy.getId() != agent.getId() &&
     		   //this is too complicated so i need a distance function
-    		   Math.floor(distance(agent, enemy)) <= agent.atkRan) {
+    		   Math.floor(this.world.distance(agent, enemy)) <= agent.atkRan) {
     			agents.add(enemy.getId());
     		}
     	}
@@ -486,18 +529,45 @@ public class GameState {
     	return agents;
     }
     
-    private double distance(Cell agent, Cell enemy) {
-    	return Math.sqrt(Math.pow(agent.getX() - enemy.getX(), 2.0) + Math.pow(agent.getY() - enemy.getY(), 2.0));
+    private void applyAction(Action action) {
+    	if(action.getType() == ActionType.PRIMITIVEATTACK) {
+    		TargetedAction tarAction = (TargetedAction) action;
+    		
+    		Agent atker = this.world.agents.get(tarAction.getUnitId());
+    		Agent atked = this.world.agents.get(tarAction.getTargetId());
+    		
+    		this.attack(atker, atked);
+    		
+    	} else { //actiontype.primitivemove
+    		DirectedAction dirAction = (DirectedAction) action;
+    		
+    		this.move(this.world.agents.get(dirAction.getUnitId()), 
+    				  dirAction.getDirection().xComponent(),
+    				  dirAction.getDirection().yComponent());
+    	}
     }
     
-    //it turns out that constantly checking allFootmen.size() > 0 is annoying...
-    public Collection<Agent> getLivingFootmen() {
-    	return allFootmen.stream().filter(a -> (a.alive())).collect(Collectors.toList());
+    private void move(Agent agent, int x, int y) {
+    	int nextX = agent.getX() + x;
+    	int nextY = agent.getY() + y;
+    	
+    	this.world.map[agent.getX()][agent.getY()] = null;
+    	
+    	agent.setX(nextX);
+    	agent.setY(nextY);
+    	
+    	this.world.map[nextX][nextY] = agent;
+    	
+    	//System.out.println(agent.getId() + " moved!");
     }
     
-    public Collection<Agent> getLivingArchers() {
-    	return allArchers.stream().filter(a -> (a.alive())).collect(Collectors.toList());
+    private void attack(Agent atker, Agent atked) {
+    	atked.setHp(atked.getHp() - atker.getAtkDmg());
+    	
+    	//System.out.println(atker.getId() + " attacked!");
     }
+
+    /**
     
     /*
      * utility function for confirming map data
