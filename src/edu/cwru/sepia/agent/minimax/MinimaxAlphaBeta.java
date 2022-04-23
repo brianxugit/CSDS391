@@ -78,13 +78,14 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public GameStateChild alphaBetaSearch(GameStateChild node, int depth, double alpha, double beta)
     {
-    	System.out.println("alpha beta is happening");
+    	System.out.println("alpha beta is happening with depth = " + depth);
     	//at a particular state we have gamestate.getutility() for utility
     	//we also need to know which state we are at, aka max player vs min enemy
     	
     	double val = maximize(node, depth, alpha, beta);
     	
-    	//find val node
+    	//find node that corresponds to our max
+    	//System.out.println("chosen node with val " + val);
     	
     	for(GameStateChild child : node.state.getChildren()) {
     		if(child.state.getUtility() == val) return child;
@@ -96,21 +97,26 @@ public class MinimaxAlphaBeta extends Agent {
 
     //methods to circumvent the need for player tracking variable
     private double maximize(GameStateChild node, int depth, double alpha, double beta) {
+    	
+    	if(depth == 0) return node.state.getUtility();
+    	
     	double max = Double.NEGATIVE_INFINITY; //init to min
     	
     	for(GameStateChild child : orderChildrenWithHeuristics(node.state.getChildren())) {
     		
     		max = Math.max(max, minimize(child, depth - 1, alpha, beta));
     		
-    		if(max >= beta) return max;
+    		if(max >= beta) return max; //prune
     		
     		alpha = Math.max(max, alpha);
     	}
-    	System.out.println("max: " + max);
     	return max;
     }
     
     private double minimize(GameStateChild node, int depth, double alpha, double beta) {
+
+    	if(depth == 0) return node.state.getUtility();
+    	
     	double min = Double.POSITIVE_INFINITY; //you know the drill
     	
     	for(GameStateChild child : orderChildrenWithHeuristics(node.state.getChildren())) {
@@ -121,7 +127,6 @@ public class MinimaxAlphaBeta extends Agent {
     		
     		beta = Math.min(min, beta);
     	}
-    	System.out.println("min: " + min);
     	return min;
     }
     
@@ -148,7 +153,7 @@ public class MinimaxAlphaBeta extends Agent {
     	List<GameStateChild> orderedChildren = new ArrayList<GameStateChild>();
     	List<GameStateChild> orderedMoves = new ArrayList<GameStateChild>();
     	
-    	System.out.println("node expansion size: " + children.size());
+    	//System.out.println("node expansion size: " + children.size());
     	
     	for(GameStateChild child : children) {
     		int atks = 0;
@@ -177,7 +182,8 @@ public class MinimaxAlphaBeta extends Agent {
     	    	else return 0;
     	    }
     	});
-    	orderedChildren.addAll(orderedMoves); //append movement options
+    	
+    	orderedChildren.addAll(orderedMoves); //append sorted movement options
     	
         return orderedChildren;
     }

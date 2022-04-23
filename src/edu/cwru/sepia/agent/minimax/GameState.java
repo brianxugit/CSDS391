@@ -52,6 +52,7 @@ public class GameState {
 	private boolean playerTurn; //true for footmen, false for archers
 	//alright so now this thing needs to alternate every time
 	//aka when gamestate constructor happens it needs to flip...
+	private boolean calcUtility; //calc utility at player turn, dont for enemy turn
 	
 	private double utility = 0;
 	
@@ -110,6 +111,7 @@ public class GameState {
     //secondary constructor...
     //
     public GameState(GameState gameState) {
+    	//System.out.println("new gamestate");
     	//i give up im making a secondary gamestate constructor
     	//the first one, which takes in a pure state, needs playerTurn = true
     	//all subsequent ones need playerTurn = !playerTurn
@@ -139,6 +141,8 @@ public class GameState {
     	});
     	
     	this.playerTurn = !gameState.playerTurn;
+    	this.calcUtility =  gameState.calcUtility;
+    	this.utility = gameState.utility;
     	
     }
     
@@ -209,6 +213,10 @@ public class GameState {
         
         public Collection<Agent> getLivingArchers() {
         	return allArchers.stream().filter(a -> (a.alive())).collect(Collectors.toList());
+        }
+        
+        public Cell[][] getMap() {
+        	return map;
         }
         
     }
@@ -341,30 +349,166 @@ public class GameState {
      */
     public double getUtility() {
     	
-    	//weighted linear combination
-    	//a* would be nice but i somehow feel that would be too complicated
-    	//but how else should the footman find its path?
-    	//start with most basic: distance from  archer
-    	//this would immediately cause an issue given how the map is designed but let's just see how it interacts
-    	//the plan afterwards is to implement a* and use path length as a heuristic
-    	this.utility += enemyDistanceUtility();
+    	if(this.calcUtility) return this.utility;
     	
-    	//a useful utility will be the expected hp of any given agent
-    	//that is, if they are in attackable range, consider the potential hp loss
+    	this.utility += enemyDistanceUtility();
+    	this.utility += canAttackUtility();
+    	
     	System.out.println("utility: " + this.utility);
+    	
+    	calcUtility = true;
+    	
         return this.utility;
     }
     
-    private double enemyDistanceUtility() {
+    private double canAttackUtility() {
     	double utility = 0.0;
+    	for(Agent agent : this.world.getLivingFootmen()) {
+    		utility += canAttack(agent).size() * 1000;
+    	}
+    	//System.out.println("attack util: " + utility);
+    	return this.utility;
+    }
+    
+    private double enemyDistanceUtility() {
     	
-    	for(Agent footman : world.getLivingFootmen()) {
-    		for(Agent archer : world.getLivingArchers()) {
-    			utility = Math.min(world.distance(footman, archer), utility);
+    	double utility = 0.0;
+    	double temp = this.world.xDim * this.world.yDim;
+    	
+    	//System.out.println(this.world.getLivingFootmen().size() + " footmen are alive");
+    	//System.out.println(this.world.getLivingArchers().size() + " archers are alive");
+    	
+    	for(Agent footman : this.world.getLivingFootmen()) {
+    		
+    		int fX = footman.getX();
+    		int fY = footman.getY();
+	
+    		//stores the shortest path a particular footman has access to
+    		int shortestPath = Integer.MAX_VALUE; 
+    		
+    		for(Agent archer : this.world.getLivingArchers()) {
+    			int aX = archer.getX();
+    			int aY = archer.getY();
+    			
+    			//at some point we will need to enforce priority between the footmen
+    			
+    			//the path from this footman to a particular archer
+    			int pathLengthToArcher = AstarPathLength(this.world.map[fX][fY], this.world.map[aX][aY]);
+    			
+    			shortestPath = Math.min(pathLengthToArcher, shortestPath);
+    		}
+    		utility += temp * (1/(double)shortestPath);
+    	}
+    	return utility;
+    }
+    
+    //i would like each instance of astar to have its own, clean copy of the map
+    //so instead i will build a new map for each one
+    //populated by special cells for astar
+    //holy hell is this a bad idea
+    private class AstarCell extends Cell implements Comparable<AstarCell> {
+    	public int x, y;
+    	public AstarCell cameFrom;
+    	public float cost;
+    	public float dist;
+    	public boolean passable;
+    	
+    	public AstarCell(int x, int y, AstarCell cameFrom, float cost) {
+    		super(0, x, y);
+    		this.cameFrom = cameFrom;
+    		this.cost = cost;
+    	}
+    	
+    	@Override
+    	public int compareTo(AstarCell anotherCell) {
+    		return Float.compare(cost,  anotherCell.cost);
+    	}
+    }
+    
+    private int AstarPathLength(Cell start, Cell goal) {
+    	
+    	Cell[][] cellMap = this.world.getMap();
+    	
+    	AstarCell[][] map = new AstarCell[this.world.xDim][this.world.yDim];
+    	
+    	for(int x = 0; x < this.world.xDim; x++) {
+    		for(int y = 0; y < this.world.yDim; y++) {
+    			map[x][y] = new AstarCell(x, y, null, 0);
+    			map[x][y].passable = !this.world.trees.containsValue(cellMap[x][y]);
     		}
     	}
     	
-    	return utility;
+    	PriorityQueue<AstarCell> openSet = new PriorityQueue<>();
+    	HashSet<AstarCell> closedSet = new HashSet<>();
+    	
+    	AstarCell s = map[start.getX()][start.getY()];
+    	AstarCell g = map[goal.getX()][goal.getY()];
+    	
+    	s.dist = 0f;
+    	openSet.add(s);
+    	
+    	while(!openSet.isEmpty())
+    	{
+    		AstarCell n = openSet.poll();
+    		closedSet.add(n);
+    		if(n == g) break;
+    		
+    		for(AstarCell q : getNeighbors(map, n)) {
+    			if(closedSet.contains(q) || !q.passable) continue;
+    			
+    			float distTo = n.dist + euclidean(n, q);
+    			
+    			if(!openSet.contains(q) || distTo < q.dist) {
+    				q.dist = distTo;
+    				q.cost = chebyshev(q, g);
+    				q.cameFrom = n;
+    				
+    				if(!openSet.contains(q)) openSet.add(q);
+    			}
+    		}
+    	}
+    	
+    	AstarCell curr = g.cameFrom;
+    	int length = 0;
+    	while(curr != s) {
+    		//System.out.println(curr.getX() + ", " + curr.getY());
+    		length++;
+    		curr = curr.cameFrom;
+    	}
+    	
+    	//System.out.println("unit at (" + s.getX() + ", " + s.getY() + ") is " + length + " moves from (" + g.getX() + ", " + g.getY() + ")");
+    	
+    	return length;
+    }
+    
+    private float chebyshev(AstarCell curr, AstarCell goal) {
+    	if(curr == null || goal == null) {
+    		return Float.MAX_VALUE;
+    	}
+    	return Math.max(Math.abs(goal.getY() - curr.getY()), Math.abs(goal.getX() - curr.getX())) - 1;
+    }
+    
+    private float euclidean(AstarCell curr, AstarCell goal) {
+    	return (float) Math.sqrt(Math.pow(goal.getX() - curr.getX(), 2) + Math.pow(goal.getY() - curr.getY(), 2));
+    }
+    
+    private Set<AstarCell> getNeighbors(AstarCell[][] map, AstarCell n) {
+    	Set<AstarCell> neighbors = new HashSet<AstarCell>();
+    	
+    	for(int x = -1; x <= 1; x++) {
+    		for(int y = -1; y <= 1; y++) {
+    			if (x == 0 && y == 0) continue; //ignore self
+    			
+    			int nextX = n.getX() + x; //offset from initial cell
+    			int nextY = n.getY() + y;
+    			
+    			if(nextX < map.length && nextX >= 0 && nextY < map[0].length && nextY >= 0) {
+    				
+    				neighbors.add(map[nextX][nextY]);
+    			}
+    		}
+    	}
+    	return neighbors;
     }
 
     /**
@@ -418,14 +562,10 @@ public class GameState {
     	//choose between footmen and archers
     	Collection<Agent> agents = playerTurn ? this.world.getLivingFootmen() : this.world.getLivingArchers();
     	
-    	System.out.println(playerTurn);
-    	
     	//collect actions per agent into a list
     	//given an agent, agentActions() returns a list of actions that agent can do
     	
     	List<List<Action>> agentActions = agents.stream().map(a -> agentActions(a)).collect(Collectors.toList());
-    	
-    	System.out.println("listlistaction: " + agentActions.size());
     	
     	//we only have 2 agents so the result is the list agentActions.get(0) and agentActions.get(1) for each one
     	
@@ -433,11 +573,9 @@ public class GameState {
     	//make action combos for gamestates
     	//mercy on my names
     	
-    	
-    	System.out.println("find my children");
-    	
-    	
     	List<Map<Integer, Action>> actionListList = new ArrayList<Map<Integer, Action>>();
+    	
+    	if(agentActions.size() == 0) return null;
     	
     	for(Action act1 : agentActions.get(0)) {
     		if(agentActions.size() == 1) {
@@ -466,10 +604,10 @@ public class GameState {
     		for(Action action : actionList.values()) {
     			child.applyAction(action);
     		}
+    		children.add(new GameStateChild(actionList, child));
     	}
     	
-    	//the amount of band-aids on this code is extremely alarming
-    	//and i havent even done heuristic data collection and calcualtion yet
+    	//System.out.println("getChildren found " + children.size() + " children");
     	
         return children;
     }
@@ -496,12 +634,6 @@ public class GameState {
     			break;
     		}
     	}
-    	//check if agent can attack
-    	//from observing the base config,
-    	//when the archer and footman occupy opposite corners of 7x7 square,
-    	//i expect distance to be that of sqrt(36 + 36), floored to 8, while archer range is 8
-    	//in the sim they attack, so my can attack function should be able to account for this
-    	//it also seems that the archer dmg value is randomized in its dmg range
     	for(int id : canAttack(agent)) {
     		actions.add(Action.createPrimitiveAttack(agent.getId(), id));
     	}
