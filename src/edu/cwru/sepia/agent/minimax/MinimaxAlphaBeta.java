@@ -43,6 +43,7 @@ public class MinimaxAlphaBeta extends Agent {
                 Double.NEGATIVE_INFINITY,
                 Double.POSITIVE_INFINITY);
 
+        System.out.println(bestChild.action);
         return bestChild.action;
     }
 
@@ -148,13 +149,13 @@ public class MinimaxAlphaBeta extends Agent {
     	//goal is to kill archer
     	//attack is highest priority, so we want to get as many as possible
     	//so simple hierarchy is
-    	//n attacks > 1 attack > no attacks
+    	//2 attacks > 1 attack > no attacks
     	
     	List<GameStateChild> orderedChildren = new ArrayList<GameStateChild>();
     	List<GameStateChild> orderedMoves = new ArrayList<GameStateChild>();
     	
     	//System.out.println("node expansion size: " + children.size());
-    	
+
     	for(GameStateChild child : children) {
     		int atks = 0;
     		
@@ -165,7 +166,9 @@ public class MinimaxAlphaBeta extends Agent {
     		}
     		
     		if(atks == child.action.size()) {
-    			orderedChildren.add(0, child);   		
+    			System.out.println(atks);
+    			orderedChildren.add(0, child); 
+    			System.out.println(child.action.containsValue(ActionType.PRIMITIVEATTACK));
     		} else if (atks > 0) {
     			if(orderedChildren.isEmpty()) orderedChildren.add(0, child);
     			else orderedChildren.add(1, child);

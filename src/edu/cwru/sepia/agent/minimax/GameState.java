@@ -56,6 +56,9 @@ public class GameState {
 	
 	private double utility = 0;
 	
+	private int totalFootmanHp;
+	private int totalArcherHp;
+	
 	//need a variable to check if this gamestate is enemy turn or our turn...
 	//bool something
 	
@@ -102,7 +105,9 @@ public class GameState {
     	
     	state.getAllUnits().stream().forEach( (a) -> {
     		//jesus
-    		this.world.addAgent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP(), a.getTemplateView().getName().equals("Footman") ? 0 : 1);		
+    		this.world.addAgent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP(), a.getTemplateView().getName().equals("Footman") ? 0 : 1);
+    		if(a.getTemplateView().getName().equals("Footman")) totalFootmanHp += a.getHP(); //2 * 160 = 320
+    		else totalArcherHp += a.getHP(); //etc
     	});
     	
     	playerTurn = true;
@@ -353,7 +358,9 @@ public class GameState {
     	
     	this.utility += enemyDistanceUtility();
     	this.utility += canAttackUtility();
+    	this.utility += myHealthUtility() * 2.0;
     	
+    	System.out.println("health util: " + myHealthUtility());
     	System.out.println("utility: " + this.utility);
     	
     	calcUtility = true;
@@ -361,19 +368,49 @@ public class GameState {
         return this.utility;
     }
     
+    //like, this isn't working how i want it to yet but my brain is exploding
+    private double myHealthUtility() {
+    	double utility = 0.0;
+    	
+    	Map<Integer, Integer> footmenHp = new HashMap<Integer, Integer>();
+    	
+    	for(Agent archer : this.world.getLivingArchers()) {
+    		for(int footmanId : canAttack(archer)) {
+    			Agent footman = this.world.agents.get(footmanId);
+    			footman.setPhp(footman.getHp() - archer.getAtkDmg());
+    		}
+    	}
+    	
+    	for(Agent footman : this.world.getLivingFootmen()) {
+    		utility += (double)footman.getPhp() / (double)footman.getHp();
+    	}
+    	
+    	return utility;
+    }
+    
+    private double enemyHealthUtility() {
+    	double utility = 0.0;
+    	
+    	for(Agent archer : this.world.getLivingArchers()) {
+    		//utility +=
+    	}
+    	
+    	return utility;
+    }
+    
     private double canAttackUtility() {
     	double utility = 0.0;
     	for(Agent agent : this.world.getLivingFootmen()) {
-    		utility += canAttack(agent).size() * 1000;
+    		utility += canAttack(agent).size() * 4;
     	}
-    	//System.out.println("attack util: " + utility);
+    	System.out.println("attack util: " + utility);
     	return this.utility;
     }
     
     private double enemyDistanceUtility() {
     	
     	double utility = 0.0;
-    	double temp = this.world.xDim * this.world.yDim;
+    	double temp = 1;
     	
     	//System.out.println(this.world.getLivingFootmen().size() + " footmen are alive");
     	//System.out.println(this.world.getLivingArchers().size() + " archers are alive");
@@ -390,14 +427,15 @@ public class GameState {
     			int aX = archer.getX();
     			int aY = archer.getY();
     			
-    			//at some point we will need to enforce priority between the footmen
-    			
     			//the path from this footman to a particular archer
     			int pathLengthToArcher = AstarPathLength(this.world.map[fX][fY], this.world.map[aX][aY]);
     			
     			shortestPath = Math.min(pathLengthToArcher, shortestPath);
     		}
-    		utility += temp * (1/(double)shortestPath);
+    		System.out.println("shortest path for " + footman.getId() + " = " + shortestPath);
+    		
+    		//dividing by zero is bad
+    		utility += (shortestPath != 0) ? temp * (1/(double)shortestPath) : temp + 1; //band-aid to resolve issue where 0 path length was somehow less ideal
     	}
     	return utility;
     }
@@ -622,6 +660,10 @@ public class GameState {
     	
     	List<Action> actions = new ArrayList<Action>();
     	
+    	for(int id : canAttack(agent)) {
+    		actions.add(Action.createPrimitiveAttack(agent.getId(), id));
+    	}
+    	
     	for(Direction direction : Direction.values()) {
     		switch(direction) {
     		case NORTH: case SOUTH: case EAST: case WEST:
@@ -634,9 +676,7 @@ public class GameState {
     			break;
     		}
     	}
-    	for(int id : canAttack(agent)) {
-    		actions.add(Action.createPrimitiveAttack(agent.getId(), id));
-    	}
+
     	
     	return actions;
     }
@@ -663,6 +703,7 @@ public class GameState {
     
     private void applyAction(Action action) {
     	if(action.getType() == ActionType.PRIMITIVEATTACK) {
+    		//System.out.println("applied an atk action");
     		TargetedAction tarAction = (TargetedAction) action;
     		
     		Agent atker = this.world.agents.get(tarAction.getUnitId());
@@ -696,7 +737,6 @@ public class GameState {
     private void attack(Agent atker, Agent atked) {
     	atked.setHp(atked.getHp() - atker.getAtkDmg());
     	
-    	//System.out.println(atker.getId() + " attacked!");
     }
 
     /**
