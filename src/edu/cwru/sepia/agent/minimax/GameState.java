@@ -105,9 +105,10 @@ public class GameState {
     	
     	state.getAllUnits().stream().forEach( (a) -> {
     		//jesus
-    		this.world.addAgent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP(), a.getTemplateView().getName().equals("Footman") ? 0 : 1);
+    		this.world.addAgent(a.getID(), a.getXPosition(), a.getYPosition(), a.getTemplateView().getRange(), a.getTemplateView().getBasicAttack(), state.getUnit(a.getID()).getHP(), state.getUnit(a.getID()).getHP(), a.getTemplateView().getName().equals("Footman") ? 0 : 1);
     		if(a.getTemplateView().getName().equals("Footman")) totalFootmanHp += a.getHP(); //2 * 160 = 320
     		else totalArcherHp += a.getHP(); //etc
+    		
     	});
     	
     	playerTurn = true;
@@ -142,7 +143,7 @@ public class GameState {
     	});
     	
     	gameState.world.agents.values().stream().forEach( (a) -> {
-    		this.world.addAgent(a.getId(), a.getX(), a.getY(), a.getAtkRan(), a.getAtkDmg(), a.getHp(), a.getPlayer());
+    		this.world.addAgent(a.getId(), a.getX(), a.getY(), a.getAtkRan(), a.getAtkDmg(), a.getHp(), a.getPhp(), a.getPlayer());
     	});
     	
     	this.playerTurn = !gameState.playerTurn;
@@ -186,8 +187,9 @@ public class GameState {
     		trees.put(tree.getId(), tree);
     	}
     	
-    	public void addAgent(int id, int x, int y, int range, int dmg, int hp, int player) {
+    	public void addAgent(int id, int x, int y, int range, int dmg, int hp, int php, int player) {
     		Agent agent = new Agent(id, x, y, range, dmg, hp); 
+    		agent.setPhp(php);
     		agent.setPlayer(player); //ew
     		map[x][y] = agent;
     		agents.put(agent.getId(), agent);
@@ -357,18 +359,23 @@ public class GameState {
     	if(this.calcUtility) return this.utility;
     	
     	this.utility += enemyDistanceUtility();
-    	this.utility += canAttackUtility();
-    	this.utility += myHealthUtility() * 2.0;
+    	//this.utility += enemyHealthUtility();
+    	//this.utility += canAttackUtility();
+    	//this.utility += myHealthUtility();
     	
-    	System.out.println("health util: " + myHealthUtility());
-    	System.out.println("utility: " + this.utility);
+    	//System.out.println("health util: " + myHealthUtility());
+    	//System.out.println("utility: " + this.utility);
+    	
+    	//you wouldn't believe how many hours were wasted by not including this
+    	if(this.world.getLivingArchers().size() == 0) this.utility = Double.MAX_VALUE;
+    	if(this.world.getLivingFootmen().size() == 0) this.utility = Double.MIN_VALUE;
     	
     	calcUtility = true;
     	
         return this.utility;
     }
     
-    //like, this isn't working how i want it to yet but my brain is exploding
+    //a ton of unused utilities because, in the end, simple pathing and a gentle nudge telling it to attack was enough for all test obstacles
     private double myHealthUtility() {
     	double utility = 0.0;
     	
@@ -391,9 +398,17 @@ public class GameState {
     private double enemyHealthUtility() {
     	double utility = 0.0;
     	
-    	for(Agent archer : this.world.getLivingArchers()) {
-    		//utility +=
+    	for(Agent footman : this.world.getLivingFootmen()) {
+    		for(int archerId : canAttack(footman)) {
+    			Agent archer = this.world.agents.get(archerId);
+    			archer.setPhp(archer.getHp() - footman.getAtkDmg());
+    		}
     	}
+    	
+    	for(Agent archer : this.world.getLivingArchers()) {
+    		utility += (double)archer.getHp() / (double)archer.getPhp();
+    	}
+    	utility = utility / (double)this.world.getLivingArchers().size();
     	
     	return utility;
     }
@@ -401,7 +416,7 @@ public class GameState {
     private double canAttackUtility() {
     	double utility = 0.0;
     	for(Agent agent : this.world.getLivingFootmen()) {
-    		utility += canAttack(agent).size() * 4;
+    		utility += canAttack(agent).size();
     	}
     	System.out.println("attack util: " + utility);
     	return this.utility;
@@ -415,6 +430,7 @@ public class GameState {
     	//System.out.println(this.world.getLivingFootmen().size() + " footmen are alive");
     	//System.out.println(this.world.getLivingArchers().size() + " archers are alive");
     	
+    	//find each footman's best path(s) to archer(s)
     	for(Agent footman : this.world.getLivingFootmen()) {
     		
     		int fX = footman.getX();
@@ -422,17 +438,19 @@ public class GameState {
 	
     		//stores the shortest path a particular footman has access to
     		int shortestPath = Integer.MAX_VALUE; 
-    		
+
     		for(Agent archer : this.world.getLivingArchers()) {
     			int aX = archer.getX();
     			int aY = archer.getY();
     			
     			//the path from this footman to a particular archer
-    			int pathLengthToArcher = AstarPathLength(this.world.map[fX][fY], this.world.map[aX][aY]);
+    			int pathLengthToArcher = AstarPathLength(footman, this.world.map[fX][fY], this.world.map[aX][aY]);
+    			
+    			//System.out.println("footman ID: " + footman.getId() + " at " + fX + ",  " + fY + " found path length " + pathLengthToArcher);
     			
     			shortestPath = Math.min(pathLengthToArcher, shortestPath);
     		}
-    		System.out.println("shortest path for " + footman.getId() + " = " + shortestPath);
+    		//System.out.println("shortest path for " + footman.getId() + " = " + shortestPath);
     		
     		//dividing by zero is bad
     		utility += (shortestPath != 0) ? temp * (1/(double)shortestPath) : temp + 1; //band-aid to resolve issue where 0 path length was somehow less ideal
@@ -463,7 +481,7 @@ public class GameState {
     	}
     }
     
-    private int AstarPathLength(Cell start, Cell goal) {
+    private int AstarPathLength(Agent agent, Cell start, Cell goal) {
     	
     	Cell[][] cellMap = this.world.getMap();
     	
@@ -474,6 +492,10 @@ public class GameState {
     			map[x][y] = new AstarCell(x, y, null, 0);
     			map[x][y].passable = !this.world.trees.containsValue(cellMap[x][y]);
     		}
+    	}
+    	
+    	for(Agent a : (agent.getPlayer() == 0) ? this.world.getLivingFootmen() : this.world.getLivingArchers()) {
+    		map[a.getX()][a.getY()].passable = false;
     	}
     	
     	PriorityQueue<AstarCell> openSet = new PriorityQueue<>();
@@ -498,7 +520,7 @@ public class GameState {
     			
     			if(!openSet.contains(q) || distTo < q.dist) {
     				q.dist = distTo;
-    				q.cost = chebyshev(q, g);
+    				q.cost = manhattan(q, g);
     				q.cameFrom = n;
     				
     				if(!openSet.contains(q)) openSet.add(q);
@@ -519,11 +541,12 @@ public class GameState {
     	return length;
     }
     
-    private float chebyshev(AstarCell curr, AstarCell goal) {
+    //manhattan distance
+    private float manhattan(AstarCell curr, AstarCell goal) {
     	if(curr == null || goal == null) {
     		return Float.MAX_VALUE;
     	}
-    	return Math.max(Math.abs(goal.getY() - curr.getY()), Math.abs(goal.getX() - curr.getX())) - 1;
+    	return Math.abs(goal.getY() - curr.getY()) + Math.abs(goal.getX() - curr.getX()) - 1; //make it admissible
     }
     
     private float euclidean(AstarCell curr, AstarCell goal) {
@@ -693,12 +716,16 @@ public class GameState {
     		if(enemy.getPlayer() != agent.getPlayer() && 
     		   enemy.getId() != agent.getId() &&
     		   //this is too complicated so i need a distance function
-    		   Math.floor(this.world.distance(agent, enemy)) <= agent.atkRan) {
+    		   inRange(agent.getX(), agent.getY(), enemy.getX(), enemy.getY(), agent.getAtkRan())) {
     			agents.add(enemy.getId());
     		}
     	}
     	
     	return agents;
+    }
+    
+    private boolean inRange(int x, int y, int enemyX, int enemyY, int range) {
+    	return Math.abs(enemyY - y) <= range && Math.abs(enemyX - x) <= range;
     }
     
     private void applyAction(Action action) {

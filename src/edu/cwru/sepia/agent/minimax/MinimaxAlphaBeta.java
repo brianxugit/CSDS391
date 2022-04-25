@@ -87,7 +87,6 @@ public class MinimaxAlphaBeta extends Agent {
     	
     	//find node that corresponds to our max
     	//System.out.println("chosen node with val " + val);
-    	
     	for(GameStateChild child : node.state.getChildren()) {
     		if(child.state.getUtility() == val) return child;
     	}
@@ -99,8 +98,8 @@ public class MinimaxAlphaBeta extends Agent {
     //methods to circumvent the need for player tracking variable
     private double maximize(GameStateChild node, int depth, double alpha, double beta) {
     	
-    	if(depth == 0) return node.state.getUtility();
-    	
+    	//terminal node
+    	if(depth == 0 || orderChildrenWithHeuristics(node.state.getChildren()) == null) return node.state.getUtility();
     	double max = Double.NEGATIVE_INFINITY; //init to min
     	
     	for(GameStateChild child : orderChildrenWithHeuristics(node.state.getChildren())) {
@@ -116,7 +115,7 @@ public class MinimaxAlphaBeta extends Agent {
     
     private double minimize(GameStateChild node, int depth, double alpha, double beta) {
 
-    	if(depth == 0) return node.state.getUtility();
+    	if(depth == 0 || orderChildrenWithHeuristics(node.state.getChildren()) == null) return node.state.getUtility();
     	
     	double min = Double.POSITIVE_INFINITY; //you know the drill
     	
@@ -155,7 +154,7 @@ public class MinimaxAlphaBeta extends Agent {
     	List<GameStateChild> orderedMoves = new ArrayList<GameStateChild>();
     	
     	//System.out.println("node expansion size: " + children.size());
-
+    	if(children == null) return null;
     	for(GameStateChild child : children) {
     		int atks = 0;
     		
@@ -166,9 +165,9 @@ public class MinimaxAlphaBeta extends Agent {
     		}
     		
     		if(atks == child.action.size()) {
-    			System.out.println(atks);
+    			//System.out.println(atks);
     			orderedChildren.add(0, child); 
-    			System.out.println(child.action.containsValue(ActionType.PRIMITIVEATTACK));
+    			//System.out.println(child.action.containsValue(ActionType.PRIMITIVEATTACK));
     		} else if (atks > 0) {
     			if(orderedChildren.isEmpty()) orderedChildren.add(0, child);
     			else orderedChildren.add(1, child);
@@ -180,13 +179,19 @@ public class MinimaxAlphaBeta extends Agent {
     	orderedMoves.sort(new Comparator<GameStateChild>() {
     		@Override
     		public int compare(GameStateChild o1, GameStateChild o2) {
-    	    	if(o1.state.getUtility() > o2.state.getUtility()) return 1;
-    	    	else if (o1.state.getUtility() < o2.state.getUtility()) return -1;
+    	    	if(o1.state.getUtility() < o2.state.getUtility()) return 1;
+    	    	else if (o1.state.getUtility() > o2.state.getUtility()) return -1;
     	    	else return 0;
     	    }
     	});
     	
     	orderedChildren.addAll(orderedMoves); //append sorted movement options
+    	/*
+    	for(GameStateChild gsc : orderedChildren) {
+    		if(gsc.action.get(0) != null) System.out.println(gsc.action.get(0).getType() + " " + gsc.state.getUtility());
+    		
+    	}
+    	*/
     	
         return orderedChildren;
     }
