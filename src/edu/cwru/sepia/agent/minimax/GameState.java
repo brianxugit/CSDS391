@@ -169,16 +169,6 @@ public class GameState {
     		this.yDim = y;
     		
         	this.map = new Cell[xDim][yDim];
-        	     	
-        	/*
-        	for(Agent aa : allAgents.values()) {
-        		System.out.println(aa.getId() + " " + aa.atkRan + " " + aa.atkDmg);
-        		for(int aaa : canAttack(aa)) {
-        			System.out.print(aaa);
-        		}
-        		System.out.println();
-        	}
-        	*/
     	}
         
     	public void addTree(int id, int x, int y) {
@@ -199,11 +189,6 @@ public class GameState {
     		else {
     			allArchers.add(agent);
     		}
-    		/*
-    		System.out.print("(Player " + agent.getPlayer() + "), ID:" + agent.getId());
-    		System.out.print(" at (" + agent.getX() + ", " + agent.getY() + ") with HP:" + agent.getHp());
-    		System.out.println();
-    		*/
     	}
     	
         public boolean validCell(int x, int y) {

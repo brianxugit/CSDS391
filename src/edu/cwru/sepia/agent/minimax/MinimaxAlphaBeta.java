@@ -188,16 +188,10 @@ public class MinimaxAlphaBeta extends Agent {
     	orderedChildren.addAll(orderedMoves); //append sorted movement options
     	
     	for(GameStateChild gsc : orderedChildren) {
-    		if(gsc.action.get(0) != null) System.out.println(gsc.action.get(0).getType() + " " + gsc.state.getUtility());
-    		
+    		gsc.state.getUtility();
     	}
-    	
-    	
+
         return orderedChildren;
     }
-    
-    
-    
-    
-    
+   
 }
