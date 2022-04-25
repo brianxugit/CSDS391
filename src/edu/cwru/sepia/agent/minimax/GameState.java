@@ -528,6 +528,11 @@ public class GameState {
     		}
     	}
     	
+    	if(!closedSet.contains(g)) {
+    		System.out.println("no path found");
+    		return Integer.MAX_VALUE;
+    	}
+    	
     	AstarCell curr = g.cameFrom;
     	int length = 0;
     	while(curr != s) {
