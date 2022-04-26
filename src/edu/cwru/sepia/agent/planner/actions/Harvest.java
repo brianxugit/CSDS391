@@ -5,15 +5,15 @@ import edu.cwru.sepia.agent.planner.Position;
 
 public class Harvest implements StripsAction {
 	
-	int id;
+	int resourceId;
 	
 	Position bobPos;
 	Position resPos;
 	
 	boolean hasSome;
 
-	public Harvest(GameState state) {
-		
+	public Harvest(int id) {
+		resourceId = id;
 	}
 	
 	// resource is not empty & peasant does not have it
@@ -25,8 +25,11 @@ public class Harvest implements StripsAction {
 
 	@Override
 	public GameState apply(GameState state) {
-		// TODO Auto-generated method stub
-		return null;
+		GameState newState = new GameState(state);
+		
+		newState.harvest(resourceId);
+		
+		return newState;
 	}
 
 }

@@ -1,5 +1,7 @@
 package edu.cwru.sepia.agent.planner;
 
+import edu.cwru.sepia.agent.planner.actions.Harvest;
+import edu.cwru.sepia.agent.planner.actions.Move;
 import edu.cwru.sepia.agent.planner.actions.StripsAction;
 import edu.cwru.sepia.environment.model.state.State;
 
@@ -55,6 +57,8 @@ public class GameState implements Comparable<GameState> {
 	
 	private int gold;
 	private int wood;
+	
+	private double cost;
 	
 	private Map<Integer, Resource> resources = new HashMap<Integer, Resource>();
 	
@@ -215,17 +219,60 @@ public class GameState implements Comparable<GameState> {
     	
     	GameState child = new GameState(this);
     	
+    	//if bob has stuff
     	if(bob.hasSome()) {
+    		
     		if(bob.getPos().equals(townhallPos)) {
     			//deposit
     		}
     		else {
-    			//move
+    			
+    			Move action = new Move(townhallPos);
+    			if(action.preconditionsMet(child)) {
+    				action.apply(child);
+    				update(action);
+    			}
     		}
     	}
     	
+    	//if bob can get some stuff
+    	//aka if bob is at a resource
+    	else if(GameState.resourcePos.contains(bob.getPos()) && canHarvest()) {
+    		
+    		for(Resource resource : this.resources.values()) {
+    			
+    			Harvest action = new Harvest(resource.getId());
+    			
+    			if(action.preconditionsMet(child)) {
+    				action.apply(child);
+    				update(action);
+    			}
+    		}
+    	}
+    	//move around
+    	else {
+    		
+    		for(Resource resource : this.resources.values()) {
+    			
+    			GameState grandChild = new GameState(child);
+    			
+    			Move action = new Move(resource.getPos());
+    			
+    			if(action.preconditionsMet(grandChild)) {
+    				action.apply(grandChild);
+    				update(action);
+    			}
+    			
+    			children.add(grandChild);
+    		}
+    	}
+    	children.add(child);
     	
-        return null;
+        return children;
+    }
+    
+    private boolean canHarvest() {
+    	return !this.resources.values().stream().filter((r) -> r.getPos().equals(bob.getPos())).findFirst().get().empty();
     }
 
     /**
@@ -247,7 +294,10 @@ public class GameState implements Comparable<GameState> {
     	else heuristic += (wood - requiredWood);
     	
     	if(bob.hasSome()) heuristic -= bob.getGold() + bob.getWood();
-    	else ;;
+    	else {
+    		if(canHarvest()) heuristic -= 50;
+    		else heuristic += 100;
+    	}
     	
         return heuristic;
     }
@@ -261,14 +311,20 @@ public class GameState implements Comparable<GameState> {
      */
     public double getCost() {
         // TODO: Implement me!
-        return 0.0;
+        return this.cost;
+    }
+    
+    public void update(StripsAction action) {
+    	plan.add(action);
+    	this.cost++;
     }
     
     public void move(Position pos) {
     	bob.setPos(pos);
     }
     
-    public void harvest(Resource resource) {
+    public void harvest(int id) {
+    	Resource resource = this.resources.get(id);
     	if(resource.isGold()) {
     		bob.setGold(Math.min(100, resource.getAmount()));
     		resource.setAmount(Math.min(0, resource.getAmount() - 100));

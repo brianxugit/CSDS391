@@ -25,7 +25,7 @@ public class Move implements StripsAction {
 		
 		newState.move(pos);
 		
-		return state;
+		return newState;
 	}
 
 }
