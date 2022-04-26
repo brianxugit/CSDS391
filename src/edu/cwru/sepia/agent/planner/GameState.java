@@ -1,5 +1,6 @@
 package edu.cwru.sepia.agent.planner;
 
+import edu.cwru.sepia.agent.planner.actions.Deposit;
 import edu.cwru.sepia.agent.planner.actions.Harvest;
 import edu.cwru.sepia.agent.planner.actions.Move;
 import edu.cwru.sepia.agent.planner.actions.StripsAction;
@@ -11,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 
 /**
  * This class is used to represent the state of the game after applying one of the avaiable actions. It will also
@@ -223,13 +225,20 @@ public class GameState implements Comparable<GameState> {
     	if(bob.hasSome()) {
     		
     		if(bob.getPos().equals(townhallPos)) {
-    			//deposit
+    			
+    			Deposit action = new Deposit(townhallPos, bob.hasSome());
+    			
+    			if(action.preconditionsMet(child)) {
+    				child = action.apply(child);
+    				update(action);
+    			}
     		}
     		else {
     			
     			Move action = new Move(townhallPos);
+    			
     			if(action.preconditionsMet(child)) {
-    				action.apply(child);
+    				child = action.apply(child);
     				update(action);
     			}
     		}
@@ -244,7 +253,7 @@ public class GameState implements Comparable<GameState> {
     			Harvest action = new Harvest(resource.getId());
     			
     			if(action.preconditionsMet(child)) {
-    				action.apply(child);
+    				child = action.apply(child);
     				update(action);
     			}
     		}
@@ -259,13 +268,14 @@ public class GameState implements Comparable<GameState> {
     			Move action = new Move(resource.getPos());
     			
     			if(action.preconditionsMet(grandChild)) {
-    				action.apply(grandChild);
+    				grandChild = action.apply(grandChild);
     				update(action);
     			}
     			
     			children.add(grandChild);
     		}
     	}
+    	
     	children.add(child);
     	
         return children;
@@ -317,6 +327,17 @@ public class GameState implements Comparable<GameState> {
     public void update(StripsAction action) {
     	plan.add(action);
     	this.cost++;
+    }
+    
+    public Stack<StripsAction> getPlan() {
+    	
+    	Stack<StripsAction> plan = new Stack<StripsAction>();
+    	
+    	for(int i = 0; i < this.plan.size(); i++) {
+    		plan.push(this.plan.get(i));
+    	}
+    	
+    	return plan;
     }
     
     public void move(Position pos) {

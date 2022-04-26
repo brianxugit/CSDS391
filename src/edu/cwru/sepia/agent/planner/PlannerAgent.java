@@ -102,9 +102,33 @@ public class PlannerAgent extends Agent {
     		GameState n = openSet.poll();
     		closedSet.add(n);
     		
-    		if(n.isGoal()) ;//return the plan
+    		if(n.isGoal()) return n.getPlan();
     		
     		closedSet.add(n);
+    		
+    		List<GameState> children = n.generateChildren();
+    		
+    		for(GameState q : children) {
+    			if(closedSet.contains(q)) {
+    				if(!openSet.contains(q)) {
+    					openSet.add(q);
+    				}
+    				else
+    				{
+    					GameState first = null;
+    					for(GameState next : openSet) {
+    						if(next.equals(q)) {
+    							first = next;
+    						}
+    					}
+    					
+    					if(first.getCost() > q.getCost()) {
+    						openSet.remove(first);
+    						openSet.add(q);
+    					}
+    				}
+    			}
+    		}
     	}
     	
         return null;
