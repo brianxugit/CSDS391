@@ -1,8 +1,14 @@
 package edu.cwru.sepia.agent.planner;
 
+import edu.cwru.sepia.agent.planner.actions.StripsAction;
 import edu.cwru.sepia.environment.model.state.State;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * This class is used to represent the state of the game after applying one of the avaiable actions. It will also
@@ -36,6 +42,23 @@ import java.util.List;
  * class/structure you use to represent actions.
  */
 public class GameState implements Comparable<GameState> {
+	
+	private static int requiredGold;
+	private static int requiredWood;
+	
+	private static Position townhallPos;
+	private static int townhallId;
+	
+	private static Peasant bob;
+	
+	private static Set<Position> resourcePos = new HashSet<Position>();
+	
+	private int gold;
+	private int wood;
+	
+	private Map<Integer, Resource> resources = new HashMap<Integer, Resource>();
+	
+	private List<StripsAction> plan = new ArrayList<StripsAction>();
 
     /**
      * Construct a GameState from a stateview object. This is used to construct the initial search node. All other
@@ -51,9 +74,118 @@ public class GameState implements Comparable<GameState> {
         // TODO: Implement me!
     	// in PA2, it was advantageous to build a second constructor which took the previous state as an input to simplify making children
     	// so i guess i should do this again
-    	System.out.println("test");
+    	// alright let's do this entire thing again woohoo
+    	
+    	GameState.requiredGold = requiredGold;
+    	GameState.requiredWood = requiredWood;
+    	
+    	state.getAllResourceNodes().stream().forEach((r) -> {
+    		Position pos = new Position(r.getXPosition(), r.getYPosition());
+    		GameState.resourcePos.add(pos);
+    		
+    		if(r.getType().name().toLowerCase().equals("gold_mine")) {
+    			resources.put(r.getID(), new Gold(r.getID(), pos, r.getAmountRemaining()));
+    		}
+    		else //name == "wood" 
+    		{
+    			resources.put(r.getID(), new Wood(r.getID(), pos, r.getAmountRemaining()));
+    		}
+    	});
+    	
+    	state.getAllUnits().stream().forEach((u) -> {
+    		Position pos = new Position(u.getXPosition(), u.getYPosition());
+    		
+    		if(u.getTemplateView().getName().toLowerCase().equals("townhall")) {
+    			GameState.townhallPos = pos;
+    			GameState.townhallId = u.getID();
+    		}
+    		else //name == "peasant"
+    		{
+    			bob = new Peasant(u.getID(), pos);
+    		}
+    	});
+    }
+    
+    public GameState(GameState state) {
+    	this.gold = state.gold;
+    	this.wood = state.wood;
+    	this.bob = state.bob;
+    }
+    
+    private class Gold extends Resource {
+    	Gold(int id, Position pos, int amount) {
+    		this.id = id;
+    		this.pos = pos;
+    		this.amount = amount;
+    	}
+    	
+    	@Override
+    	public boolean isGold() { return true; }
+    	
+    	@Override
+    	public boolean isWood() { return false; }
+    }
+    
+    private class Wood extends Resource {
+    	Wood(int id, Position pos, int amount) {
+    		this.id = id;
+    		this.pos = pos;
+    		this.amount = amount;
+    	}
+    	
+    	@Override
+    	public boolean isGold() { return false; }
+    	
+    	@Override
+    	public boolean isWood() { return true; }
     }
 
+    private abstract class Resource {
+    	protected int id;
+    	protected Position pos;
+    	
+    	protected int amount;
+    	
+    	public abstract boolean isGold();
+    	public abstract boolean isWood();
+    	
+    	public int getId() { return this.id; }
+    	public Position getPos() { return this.pos; }
+    	
+    	public void setId(int id) { this.id = id; }
+    	public void setPos(Position pos) { this.pos = pos; }
+    	
+    	public boolean empty() { return amount == 0; }
+    }
+    
+    private class Peasant {
+    	private int id;
+    	private Position pos;
+    	private int gold = 0;
+    	private int wood = 0;
+    	
+    	public Peasant(int id, Position pos) {
+    		this.id = id;
+    		this.pos = pos;
+    	}
+    	
+    	public int getId() { return id; }
+    	public Position getPos() { return pos; }
+    	
+    	public void setId(int id) { this.id = id; }
+    	public void setPos(Position pos) { this.pos = pos; }
+    	
+    	public int getGold() { return gold; }
+    	public int getWood() { return wood; }
+    	
+    	public void setGold(int gold) { this.gold = gold; }
+    	public void setWood(int wood) { this.wood = wood; }
+    	
+    	public boolean hasGold() { return gold > 0; }
+    	public boolean hasWood() { return wood > 0; }
+    	public boolean hasSome() { return hasGold() || hasWood(); }
+    }
+    
     /**
      * Unlike in the first A* assignment there are many possible goal states. As long as the wood and gold requirements
      * are met the peasants can be at any location and the capacities of the resource locations can be anything. Use
@@ -63,7 +195,7 @@ public class GameState implements Comparable<GameState> {
      */
     public boolean isGoal() {
         // TODO: Implement me!
-        return false;
+        return gold >= requiredGold && wood >= requiredWood;
     }
 
     /**
@@ -74,6 +206,21 @@ public class GameState implements Comparable<GameState> {
      */
     public List<GameState> generateChildren() {
         // TODO: Implement me!
+    	
+    	List<GameState> children = new ArrayList<GameState>();
+    	
+    	GameState child = new GameState(this);
+    	
+    	if(bob.hasSome()) {
+    		if(bob.getPos().equals(townhallPos)) {
+    			//deposit
+    		}
+    		else {
+    			//move
+    		}
+    	}
+    	
+    	
         return null;
     }
 
@@ -87,7 +234,18 @@ public class GameState implements Comparable<GameState> {
      */
     public double heuristic() {
         // TODO: Implement me!
-        return 0.0;
+    	int heuristic = 0;
+    	
+    	if(gold <= requiredGold) heuristic += (requiredGold - gold);
+    	else heuristic += (gold - requiredGold);
+    	
+    	if(wood <= requiredWood) heuristic += (requiredWood - wood);
+    	else heuristic += (wood - requiredWood);
+    	
+    	if(bob.hasSome()) heuristic -= bob.getGold() + bob.getWood();
+    	else ;;
+    	
+        return heuristic;
     }
 
     /**
