@@ -152,8 +152,12 @@ public class GameState implements Comparable<GameState> {
     	public int getId() { return this.id; }
     	public Position getPos() { return this.pos; }
     	
+    	public int getAmount() { return this.amount; }
+    	
     	public void setId(int id) { this.id = id; }
     	public void setPos(Position pos) { this.pos = pos; }
+    	
+    	public void setAmount(int id) { this.amount = amount; }
     	
     	public boolean empty() { return amount == 0; }
     }
@@ -259,6 +263,38 @@ public class GameState implements Comparable<GameState> {
         // TODO: Implement me!
         return 0.0;
     }
+    
+    public void move(Position pos) {
+    	bob.setPos(pos);
+    }
+    
+    public void harvest(Resource resource) {
+    	if(resource.isGold()) {
+    		bob.setGold(Math.min(100, resource.getAmount()));
+    		resource.setAmount(Math.min(0, resource.getAmount() - 100));
+    	}
+    	else //harvest wood
+    	{
+    		bob.setWood(Math.min(100, resource.getAmount()));
+    		resource.setAmount(Math.min(0, resource.getAmount() - 100));
+    	}
+    }
+    
+    public void deposit() {
+    	if(bob.hasGold()) {
+    		this.gold += bob.getGold();
+    		bob.setGold(0);
+    	}
+    	else //deposit wood
+    	{
+    		this.wood += bob.getWood();
+    		bob.setWood(0);
+    	}
+    }
+    
+    public Position bobPos() {
+    	return bob.getPos();
+    }
 
     /**
      * This is necessary to use your state in the Java priority queue. See the official priority queue and Comparable
@@ -269,7 +305,8 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int compareTo(GameState o) {
-        // TODO: Implement me!
+        if(this.heuristic() > o.heuristic()) return 1;
+        else if(this.heuristic() < o.heuristic()) return -1;
         return 0;
     }
 
