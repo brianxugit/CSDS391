@@ -1,6 +1,7 @@
 package edu.cwru.sepia.agent.planner;
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionResult;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.agent.planner.actions.*;
 import edu.cwru.sepia.environment.model.history.History;
@@ -87,7 +88,28 @@ public class PEAgent extends Agent {
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
         // TODO: Implement me!
     	// mercy on my soul
-        return null;
+    	
+    	Map<Integer, Action> actions = new HashMap<Integer, Action>();
+    	
+    	if(plan.isEmpty()) return actions;
+    	
+    	if(stateView.getTurnNumber() != 0) {
+    		System.out.println("planning");
+    		actions.put(0, plan.pop().createSepia());
+    	}
+    	
+    	Map<Integer, ActionResult> actionResults = historyView.getCommandFeedback(playernum, stateView.getTurnNumber() - 1);
+    	boolean done = false;
+    	while(!done) {
+    		if(plan.empty()) done = true;
+    		else {
+    			StripsAction action = plan.pop();
+    			Action sepiaAction = createSepiaAction(action);
+    			
+    		}
+    	}
+    	
+        return actions;
     }
 
     /**
@@ -114,7 +136,7 @@ public class PEAgent extends Agent {
      * @return SEPIA representation of same action
      */
     private Action createSepiaAction(StripsAction action) {
-        return null;
+        return action.createSepia();
     }
 
     @Override

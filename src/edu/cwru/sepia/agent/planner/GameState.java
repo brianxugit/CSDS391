@@ -57,10 +57,10 @@ public class GameState implements Comparable<GameState> {
 	
 	private static Set<Position> resourcePos = new HashSet<Position>();
 	
-	private int gold;
-	private int wood;
+	private int gold = 0;
+	private int wood = 0;
 	
-	private double cost;
+	private double cost = 0;
 	
 	private Map<Integer, Resource> resources = new HashMap<Integer, Resource>();
 	
@@ -116,6 +116,14 @@ public class GameState implements Comparable<GameState> {
     	this.gold = state.gold;
     	this.wood = state.wood;
     	this.bob = state.bob;
+    	this.cost = state.cost;
+    	
+    	for(Resource resource : state.resources.values()) {
+    		if(resource.isGold()) this.resources.put(resource.getId(), new Gold(resource));
+    		else this.resources.put(resource.getId(), new Wood(resource));
+    	}
+    	
+    	state.plan.stream().forEach((p) -> plan.add(p));
     }
     
     private class Gold extends Resource {
@@ -123,6 +131,12 @@ public class GameState implements Comparable<GameState> {
     		this.id = id;
     		this.pos = pos;
     		this.amount = amount;
+    	}
+    	
+    	Gold(Resource resource) {
+    		this.id = resource.getId();
+    		this.pos = resource.getPos();
+    		this.amount = resource.getAmount();
     	}
     	
     	@Override
@@ -137,6 +151,12 @@ public class GameState implements Comparable<GameState> {
     		this.id = id;
     		this.pos = pos;
     		this.amount = amount;
+    	}
+    	
+    	Wood(Resource resource) {
+    		this.id = resource.getId();
+    		this.pos = resource.getPos();
+    		this.amount = resource.getAmount();
     	}
     	
     	@Override
@@ -226,7 +246,7 @@ public class GameState implements Comparable<GameState> {
     		
     		if(bob.getPos().equals(townhallPos)) {
     			
-    			Deposit action = new Deposit(townhallPos, bob.hasSome());
+    			Deposit action = new Deposit(bobPos(), townhallPos, bob.hasSome());
     			
     			if(action.preconditionsMet(child)) {
     				child = action.apply(child);
@@ -396,7 +416,7 @@ public class GameState implements Comparable<GameState> {
     @Override
     public boolean equals(Object o) {
         // TODO: Implement me!
-        return false;
+        return this == o;
     }
 
     /**
@@ -407,7 +427,14 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
+    	System.out.println("hash");
         // TODO: Implement me!
-        return 0;
+    	final int prime = 37;
+    	int hash = 1;
+    	
+    	hash = prime * hash + gold;
+    	hash = prime * hash + wood;
+    	
+        return hash;
     }
 }

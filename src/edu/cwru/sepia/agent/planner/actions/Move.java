@@ -1,5 +1,6 @@
 package edu.cwru.sepia.agent.planner.actions;
 
+import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.planner.GameState;
 import edu.cwru.sepia.agent.planner.Position;
 
@@ -26,6 +27,12 @@ public class Move implements StripsAction {
 		newState.move(pos);
 		
 		return newState;
+	}
+
+	@Override
+	public Action createSepia() {
+		return Action.createCompoundMove(0, pos.x, pos.y);
+
 	}
 
 }
