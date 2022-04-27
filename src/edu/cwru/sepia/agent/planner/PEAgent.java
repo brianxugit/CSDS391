@@ -1,6 +1,7 @@
 package edu.cwru.sepia.agent.planner;
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionFeedback;
 import edu.cwru.sepia.action.ActionResult;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.agent.planner.actions.*;
@@ -9,6 +10,8 @@ import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Template;
 import edu.cwru.sepia.environment.model.state.Unit;
+import edu.cwru.sepia.environment.model.state.Unit.UnitView;
+import edu.cwru.sepia.util.Direction;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -95,7 +98,7 @@ public class PEAgent extends Agent {
     	
     	if(stateView.getTurnNumber() != 0) {
     		System.out.println("planning");
-    		actions.put(0, plan.pop().createSepia());
+    		actions.put(0, plan.pop().createSepia(1, null));
     	}
     	
     	Map<Integer, ActionResult> actionResults = historyView.getCommandFeedback(playernum, stateView.getTurnNumber() - 1);
@@ -104,8 +107,13 @@ public class PEAgent extends Agent {
     		if(plan.empty()) done = true;
     		else {
     			StripsAction action = plan.pop();
-    			Action sepiaAction = createSepiaAction(action);
+    			ActionResult previous = actionResults.get(1);
     			
+    			if(previous != null && previous.getFeedback() == ActionFeedback.FAILED) {
+    				actions.put(previous.getAction().getUnitId(), previous.getAction());
+    			}
+    			
+    			actions.put(1, createSepiaAction(stateView, action));
     		}
     	}
     	
@@ -135,8 +143,16 @@ public class PEAgent extends Agent {
      * @param action StripsAction
      * @return SEPIA representation of same action
      */
-    private Action createSepiaAction(StripsAction action) {
-        return action.createSepia();
+    private Action createSepiaAction(State.StateView state ,StripsAction action) {
+    	//well, i only have one peasant so far and i dont feel like looping for peasants that dont exist
+    	UnitView peasant = state.getUnit(peasantIdMap.get(1));
+    	
+    	if(!action.directed()) return action.createSepia(1, null);
+    	
+    	Position peasPos = new Position(peasant.getXPosition(), peasant.getYPosition());
+    	Position goalPos = action.targetPos();
+    	
+    	return action.createSepia(peasantIdMap.get(1), peasPos.getDirection(goalPos));
     }
 
     @Override

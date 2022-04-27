@@ -8,12 +8,11 @@ import edu.cwru.sepia.util.Direction;
 public class Deposit implements StripsAction {
 
 	Position bobPos;
-	Position townhallPos;
+	Position townhallPos = GameState.townhallPos;
 	boolean hasSome;
 	
-	public Deposit(Position bobPos, Position pos, boolean loaded) {
+	public Deposit(Position bobPos, boolean loaded) {
 		this.bobPos = bobPos;
-		this.townhallPos = pos;
 		this.hasSome = loaded;
 	}
 	
@@ -28,16 +27,24 @@ public class Deposit implements StripsAction {
 		
 		newState.deposit();
 		
+		System.out.println("applied deposit");
+		
 		return newState;
 	}
 
 	@Override
-	public Action createSepia() {
-		// TODO Auto-generated method stub
-		Direction direction = bobPos.getDirection(townhallPos);
-		
-		return Action.createPrimitiveDeposit(0, direction);
+	public Action createSepia(int id, Direction dir) {
+		return Action.createPrimitiveDeposit(id, dir);
 
 	}
 
+	@Override
+	public Position targetPos() {
+		return townhallPos;
+	}
+	
+	@Override
+	public boolean directed() {
+		return true;
+	}
 }

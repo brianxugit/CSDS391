@@ -46,6 +46,8 @@ public class PlannerAgent extends Agent {
             System.exit(1);
             return null;
         }
+        
+        System.out.println("oh my god a plan was found");
 
         // write the plan to a text file
         savePlan(plan);
@@ -91,48 +93,84 @@ public class PlannerAgent extends Agent {
      * @return The plan or null if no plan is found.
      */
     private Stack<StripsAction> AstarSearch(GameState startState) {
+    	/*
+    	PriorityQueue<GameState> openQueue = new PriorityQueue<GameState>();
     	
-    	PriorityQueue<GameState> openSet = new PriorityQueue<GameState>();
+    	Set<GameState> openSet = new HashSet<GameState>();
     	Set<GameState> closedSet = new HashSet<GameState>();
     	
+    	openQueue.add(startState);
     	openSet.add(startState);
     	
-    	while(!openSet.isEmpty()) {
-    		GameState n = openSet.poll();
+    	while(!openQueue.isEmpty()) {
+    		GameState n = openQueue.poll();
     		closedSet.add(n);
     		
     		if(n.isGoal()) return n.getPlan();
     		
-    		closedSet.add(n);
-    		
     		List<GameState> children = n.generateChildren();
     		
-    		System.out.println(children.size());
-    		
     		for(GameState q : children) {
-    			if(closedSet.contains(q)) {
-    				if(!openSet.contains(q)) {
-    					openSet.add(q);
-    				}
-    				else
-    				{
-    					GameState first = null;
-    					for(GameState next : openSet) {
-    						if(next.equals(q)) {
-    							first = next;
-    						}
-    					}
-    					
-    					if(first.getCost() > q.getCost()) {
-    						openSet.remove(first);
-    						openSet.add(q);
-    					}
-    				}
+    			if(closedSet.contains(q)) continue;
+    			
+    			if(!openQueue.contains(q) || n.getCost() > q.getCost()) {
+    				System.out.println("added " + q + " to queue");
+    				openQueue.add(q);
     			}
     		}
     	}
-    	System.out.println("return null");
-        return null;
+    	*/
+    	
+    	PriorityQueue<GameState> frontierQueue = new PriorityQueue<GameState>();
+		Set<GameState> frontierSet = new HashSet<GameState>();
+    	Set<GameState> exploredSet = new HashSet<GameState>();
+    	frontierQueue.add(startState);
+		frontierSet.add(startState);
+		
+		while(!frontierQueue.isEmpty()) {
+			GameState current = frontierQueue.remove();
+			frontierSet.remove(current);
+			
+			//System.out.println("LOOK AT ME NEW ITERATION OF ASTAR" + current);
+			
+			if(current.isGoal()) {
+				return current.getPlan();
+			}
+			
+			exploredSet.add(current);			
+			
+			List<GameState> children = current.generateChildren();
+
+			children.stream().forEach(child -> {
+				
+				//System.out.println("child state generated: " + exploredSet.contains(child) + " " + child.hashCode() + " " + child);
+				
+				
+				if(!exploredSet.contains(child)){
+					if(!frontierSet.contains(child)) {
+
+						frontierQueue.add(child);
+						frontierSet.add(child);
+					} else {
+						GameState first = null;
+						for(GameState possible : frontierSet) {
+							if(possible.equals(child)) {
+								first = possible;
+							}
+						}
+						if(first.getCost() > child.getCost()) {
+							frontierQueue.remove(first);
+							frontierQueue.add(child);
+							frontierSet.remove(first);
+							frontierSet.add(child);
+						}
+					}
+				}
+			});
+		}
+		
+		
+    	return null;
     }
 
     /**

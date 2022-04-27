@@ -12,17 +12,21 @@ public class Harvest implements StripsAction {
 	Position bobPos;
 	Position resPos;
 	
-	boolean hasSome;
+	boolean hasSome; //peasant already has
+	boolean empty; //resource is not empty
 
-	public Harvest(int id) {
-		resourceId = id;
+	public Harvest(Position bobPos, Position resPos, int id, boolean hasSome, boolean empty) {
+		this.bobPos = bobPos;
+		this.resPos = resPos;
+		this.resourceId = id;
+		this.hasSome = hasSome;
+		this.empty = empty;
 	}
 	
 	// resource is not empty & peasant does not have it
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		// TODO Auto-generated method stub
-		return false;
+		return bobPos.equals(resPos) && !hasSome && !empty;
 	}
 
 	@Override
@@ -31,15 +35,23 @@ public class Harvest implements StripsAction {
 		
 		newState.harvest(resourceId);
 		
+		System.out.println("applied harvest at " + resPos.x + ", " + resPos.y);
+		
 		return newState;
 	}
 
 	@Override
-	public Action createSepia() {
-		// TODO Auto-generated method stub
-		Direction direction = bobPos.getDirection(resPos);
-		
-		return Action.createPrimitiveGather(0, direction);
+	public Action createSepia(int id, Direction dir) {
+		return Action.createPrimitiveGather(id, dir);
 	}
 
+	@Override
+	public Position targetPos() {
+		return resPos;
+	}
+	
+	@Override
+	public boolean directed() {
+		return true;
+	}
 }

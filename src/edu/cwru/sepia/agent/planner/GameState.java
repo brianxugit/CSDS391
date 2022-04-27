@@ -50,10 +50,10 @@ public class GameState implements Comparable<GameState> {
 	private static int requiredGold;
 	private static int requiredWood;
 	
-	private static Position townhallPos;
-	private static int townhallId;
+	public static Position townhallPos;
+	public static int townhallId;
 	
-	private static Peasant bob;
+	private Peasant bob;
 	
 	private static Set<Position> resourcePos = new HashSet<Position>();
 	
@@ -61,6 +61,7 @@ public class GameState implements Comparable<GameState> {
 	private int wood = 0;
 	
 	private double cost = 0;
+	private double heuristic = 0;
 	
 	private Map<Integer, Resource> resources = new HashMap<Integer, Resource>();
 	
@@ -91,6 +92,7 @@ public class GameState implements Comparable<GameState> {
     		
     		if(r.getType().name().toLowerCase().equals("gold_mine")) {
     			resources.put(r.getID(), new Gold(r.getID(), pos, r.getAmountRemaining()));
+    			System.out.println("gold at " + r.getXPosition() + ", " + r.getYPosition() + " with " + r.getAmountRemaining());
     		}
     		else //name == "wood" 
     		{
@@ -110,12 +112,15 @@ public class GameState implements Comparable<GameState> {
     			bob = new Peasant(u.getID(), pos);
     		}
     	});
+    	
+    	System.out.println(resources.size() + " number of resources");
+    	System.out.println("Peasant Bob with ID: " + bob.getId());
     }
     
     public GameState(GameState state) {
     	this.gold = state.gold;
     	this.wood = state.wood;
-    	this.bob = state.bob;
+    	this.bob = new Peasant(state.bob);
     	this.cost = state.cost;
     	
     	for(Resource resource : state.resources.values()) {
@@ -124,6 +129,20 @@ public class GameState implements Comparable<GameState> {
     	}
     	
     	state.plan.stream().forEach((p) -> plan.add(p));
+    	/*
+    	//System.out.println("this is a successor state");
+    	//System.out.println(resources.size() + " number of resources");
+    	System.out.println();
+    	System.out.println("state hash: " + hashCode());
+    	System.out.println("this state has bob (ID: " + bob.getId() +") at "  + bob.getPos().x + ", " + bob.getPos().y);
+    	System.out.println("bob has " + bob.getGold() + " gold and " + bob.getWood() + " wood");
+    	
+    	for(Resource resource : state.resources.values()) {
+    		System.out.println(bob.pos.equals(resource.pos));
+    		System.out.println("resource at " + resource.getPos().x + ", " + resource.getPos().y);
+    	}
+    	if(canHarvest()) System.out.println("bob can harvest");
+    	*/
     }
     
     private class Gold extends Resource {
@@ -185,7 +204,7 @@ public class GameState implements Comparable<GameState> {
     	
     	public void setAmount(int id) { this.amount = amount; }
     	
-    	public boolean empty() { return amount == 0; }
+    	public boolean empty() { return amount <= 0; }
     }
     
     private class Peasant {
@@ -197,6 +216,13 @@ public class GameState implements Comparable<GameState> {
     	public Peasant(int id, Position pos) {
     		this.id = id;
     		this.pos = pos;
+    	}
+    	
+    	public Peasant(Peasant p) {
+    		this.id = p.id;
+    		this.pos = p.pos;
+    		this.gold = p.gold;
+    		this.wood = p.wood;
     	}
     	
     	public int getId() { return id; }
@@ -241,40 +267,45 @@ public class GameState implements Comparable<GameState> {
     	
     	GameState child = new GameState(this);
     	
-    	//if bob has stuff
+    	//System.out.println("size " + GameState.resourcePos.size());
+    	System.out.println("state gen " + canHarvest());
+    	//if bob has stuff attempt to deposit
     	if(bob.hasSome()) {
     		
+    		System.out.println("i have stuff");
+    		
     		if(bob.getPos().equals(townhallPos)) {
-    			
-    			Deposit action = new Deposit(bobPos(), townhallPos, bob.hasSome());
+
+    			Deposit action = new Deposit(bob.getPos(), bob.hasSome());
     			
     			if(action.preconditionsMet(child)) {
-    				child = action.apply(child);
-    				update(action);
+    				child = new GameState(action.apply(child));
+    				child.update(child, action);
     			}
     		}
     		else {
     			
-    			Move action = new Move(townhallPos);
+    			Move action = new Move(bob.getPos(), townhallPos);
     			
     			if(action.preconditionsMet(child)) {
-    				child = action.apply(child);
-    				update(action);
+    				child = new GameState(action.apply(child));
+    				child.update(child, action);
     			}
     		}
     	}
-    	
-    	//if bob can get some stuff
-    	//aka if bob is at a resource
-    	else if(GameState.resourcePos.contains(bob.getPos()) && canHarvest()) {
+    	//if bob dont have stuff attempt to harvest
+    	//by checking if bob can harvest
+    	else if(canHarvest()) {
+    		
+    		System.out.println("I can harvest");
     		
     		for(Resource resource : this.resources.values()) {
-    			
-    			Harvest action = new Harvest(resource.getId());
+
+    			Harvest action = new Harvest(bob.getPos(), resource.getPos(), resource.getId(), bob.hasSome(), resource.empty());
     			
     			if(action.preconditionsMet(child)) {
-    				child = action.apply(child);
-    				update(action);
+    				child = new GameState(action.apply(child));
+    				child.update(child, action);
     			}
     		}
     	}
@@ -285,11 +316,11 @@ public class GameState implements Comparable<GameState> {
     			
     			GameState grandChild = new GameState(child);
     			
-    			Move action = new Move(resource.getPos());
+    			Move action = new Move(bob.getPos(), resource.getPos());
     			
     			if(action.preconditionsMet(grandChild)) {
-    				grandChild = action.apply(grandChild);
-    				update(action);
+    				grandChild = new GameState(action.apply(grandChild));
+    				grandChild.update(child, action);
     			}
     			
     			children.add(grandChild);
@@ -298,11 +329,54 @@ public class GameState implements Comparable<GameState> {
     	
     	children.add(child);
     	
+    	GameState grandChild = new GameState(this);
+    	
+    	Deposit depAction = new Deposit(bob.getPos(), bob.hasSome());
+    	
+    	if(depAction.preconditionsMet(grandChild)) {
+    		grandChild = depAction.apply(grandChild);
+    		grandChild.update(grandChild, depAction);
+    	}
+    	
+    	for(Resource resource : this.resources.values()) {
+    		GameState grandGrandChild = new GameState(grandChild);
+    		
+    		StripsAction action = null;
+    		
+    		if(bob.getPos().equals(resource.getPos())) {
+    			action = new Harvest(bob.getPos(), resource.getPos(), resource.getId(), bob.hasSome(), resource.empty());
+    		}
+    		else
+    		{
+    			action = new Move(bob.getPos(), resource.getPos());
+    		}
+    		
+    		if(action.preconditionsMet(grandGrandChild)) {
+    			grandGrandChild = new GameState(action.apply(grandGrandChild));
+    			grandGrandChild.update(grandGrandChild, action);
+    		}
+    		
+    		children.add(new GameState(grandGrandChild));
+    	}
+    	
+    	Move movAction = new Move(bob.getPos(), townhallPos);
+    	
+    	if(movAction.preconditionsMet(grandChild)) {
+    		grandChild = movAction.apply(grandChild);
+    		grandChild.update(grandChild, movAction);
+    	}
+    	
         return children;
     }
     
     private boolean canHarvest() {
-    	return !this.resources.values().stream().filter((r) -> r.getPos().equals(bob.getPos())).findFirst().get().empty();
+    	for(Resource resource : this.resources.values()) {
+    		if(resource.getPos().equals(bob.getPos())) {
+    			return !resource.empty();
+    		}
+    	}
+    	return false;
+    	//return !this.resources.values().stream().filter((r) -> r.getPos().equals(bob.getPos())).findFirst().get().empty();
     }
 
     /**
@@ -315,7 +389,9 @@ public class GameState implements Comparable<GameState> {
      */
     public double heuristic() {
         // TODO: Implement me!
-    	int heuristic = 0;
+    	if(this.heuristic != 0) return heuristic;
+    	
+    	if(wood > gold) heuristic += 100;
     	
     	if(gold <= requiredGold) heuristic += (requiredGold - gold);
     	else heuristic += (gold - requiredGold);
@@ -341,19 +417,21 @@ public class GameState implements Comparable<GameState> {
      */
     public double getCost() {
         // TODO: Implement me!
+    	//System.out.println(this.cost);
         return this.cost;
     }
     
-    public void update(StripsAction action) {
-    	plan.add(action);
-    	this.cost++;
+    public void update(GameState state, StripsAction action) {
+    	state.plan.add(action);
+    	state.heuristic = state.heuristic();
+    	state.cost += action.getCost();
     }
     
     public Stack<StripsAction> getPlan() {
     	
     	Stack<StripsAction> plan = new Stack<StripsAction>();
     	
-    	for(int i = 0; i < this.plan.size(); i++) {
+    	for(int i = this.plan.size() - 1; i > -1; i--) {
     		plan.push(this.plan.get(i));
     	}
     	
@@ -378,19 +456,23 @@ public class GameState implements Comparable<GameState> {
     }
     
     public void deposit() {
-    	if(bob.hasGold()) {
-    		this.gold += bob.getGold();
-    		bob.setGold(0);
+    	if(this.bob.hasGold()) {
+    		this.gold += this.bob.getGold();
+    		this.bob.setGold(0);
     	}
     	else //deposit wood
     	{
-    		this.wood += bob.getWood();
-    		bob.setWood(0);
+    		this.wood += this.bob.getWood();
+    		this.bob.setWood(0);
     	}
     }
     
     public Position bobPos() {
     	return bob.getPos();
+    }
+    
+    public Peasant getBob() {
+    	return bob;
     }
 
     /**
@@ -415,8 +497,19 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public boolean equals(Object o) {
-        // TODO: Implement me!
-        return this == o;
+        
+    	//System.out.println("equals evals as " + (this == o));
+    	
+        if(this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        
+        GameState state = (GameState) o;
+        
+        if(gold != state.gold) return false;
+        if(wood != state.wood) return false;
+        if(this.bob.getPos() != state.getBob().getPos()) return false;
+        
+        return true;
     }
 
     /**
@@ -427,13 +520,16 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
-    	System.out.println("hash");
         // TODO: Implement me!
-    	final int prime = 37;
+    	final int prime = 31;
     	int hash = 1;
-    	
+
     	hash = prime * hash + gold;
     	hash = prime * hash + wood;
+    	hash = prime * hash + bob.getGold();
+    	hash = prime * hash + bob.getWood();
+    	hash = prime * hash + bob.getPos().hashCode();
+    	//hash = prime * hash + plan.size();
     	
         return hash;
     }
