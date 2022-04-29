@@ -89,7 +89,6 @@ public class PEAgent extends Agent {
      */
     @Override
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
-        // TODO: Implement me!
     	// mercy on my soul
     	System.out.println();
     	Map<Integer, Action> actions = new HashMap<Integer, Action>();
@@ -106,20 +105,13 @@ public class PEAgent extends Agent {
     	Map<Integer, ActionResult> actionResults = historyView.getCommandFeedback(playernum, lastTurn);
     	boolean done = false;
     	
-    	int counter = 0;
-    	
     	while(!done) {
-    		
-    		System.out.println("PEAgent plan action #" + counter);
     		
     		if(plan.empty()) done = true;
     		else {
     			StripsAction next = plan.peek();
     			ActionResult previous = actionResults.get(1);
     			
-    			for(ActionResult result : actionResults.values()) {
-    				System.out.println("plan action #" + counter + " status: " + result);
-    			}
     			
     			if(!(previous != null && previous.getFeedback() != ActionFeedback.INCOMPLETE)) {
     				done = true;
@@ -133,8 +125,6 @@ public class PEAgent extends Agent {
     				done = true;
     			}
     		}
-    		
-    		counter++;
     	}
         return actions;
     }

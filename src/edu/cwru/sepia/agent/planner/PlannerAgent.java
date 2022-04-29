@@ -93,41 +93,17 @@ public class PlannerAgent extends Agent {
      * @return The plan or null if no plan is found.
      */
     private Stack<StripsAction> AstarSearch(GameState startState) {
-    	/*
-    	PriorityQueue<GameState> openQueue = new PriorityQueue<GameState>();
-    	
-    	Set<GameState> openSet = new HashSet<GameState>();
-    	Set<GameState> closedSet = new HashSet<GameState>();
-    	
-    	openQueue.add(startState);
-    	openSet.add(startState);
-    	
-    	while(!openQueue.isEmpty()) {
-    		GameState n = openQueue.poll();
-    		closedSet.add(n);
-    		
-    		if(n.isGoal()) return n.getPlan();
-    		
-    		List<GameState> children = n.generateChildren();
-    		
-    		for(GameState q : children) {
-    			if(closedSet.contains(q)) continue;
-    			
-    			if(!openQueue.contains(q) || n.getCost() > q.getCost()) {
-    				System.out.println("added " + q + " to queue");
-    				openQueue.add(q);
-    			}
-    		}
-    	}
-    	*/
     	
     	PriorityQueue<GameState> openQueue = new PriorityQueue<GameState>();
+    	
 		Set<GameState> openSet = new HashSet<GameState>();
     	Set<GameState> closedSet = new HashSet<GameState>();
+    	
     	openQueue.add(startState);
 		openSet.add(startState);
 		
 		while(!openQueue.isEmpty()) {
+			
 			GameState current = openQueue.remove();
 			openSet.remove(current);
 			
@@ -142,19 +118,25 @@ public class PlannerAgent extends Agent {
 			List<GameState> children = current.generateChildren();
 
 			for(GameState child : children) {
+				
 				if(!closedSet.contains(child)){
+					
 					if(!openSet.contains(child)) {
 
 						openQueue.add(child);
 						openSet.add(child);
+						
 					} else {
 						GameState first = null;
+						
 						for(GameState possible : openSet) {
+							
 							if(possible.equals(child)) {
 								first = possible;
 							}
 						}
 						if(first.getCost() > child.getCost()) {
+							
 							openQueue.remove(first);
 							openQueue.add(child);
 							openSet.remove(first);

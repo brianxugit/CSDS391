@@ -78,10 +78,6 @@ public class GameState implements Comparable<GameState> {
      * @param buildPeasants True if the BuildPeasant action should be considered
      */
     public GameState(State.StateView state, int playernum, int requiredGold, int requiredWood, boolean buildPeasants) {
-        // TODO: Implement me!
-    	// in PA2, it was advantageous to build a second constructor which took the previous state as an input to simplify making children
-    	// so i guess i should do this again
-    	// alright let's do this entire thing again woohoo
     	
     	GameState.requiredGold = requiredGold;
     	GameState.requiredWood = requiredWood;
@@ -113,7 +109,11 @@ public class GameState implements Comparable<GameState> {
     	});
     	System.out.println("Peasant Bob with ID: " + bob.getId());
     }
-    
+    /**
+     * Secondary constructor to ease generating children, effectively a clone function
+     * 
+     * @param state The GameState to copy
+     */
     public GameState(GameState state) {
     	this.gold = state.gold;
     	this.wood = state.wood;
@@ -126,20 +126,6 @@ public class GameState implements Comparable<GameState> {
     	}
     	
     	state.plan.stream().forEach((p) -> plan.add(p));
-    	/*
-    	//System.out.println("this is a successor state");
-    	//System.out.println(resources.size() + " number of resources");
-    	System.out.println();
-    	System.out.println("state hash: " + hashCode());
-    	System.out.println("this state has bob (ID: " + bob.getId() +") at "  + bob.getPos().x + ", " + bob.getPos().y);
-    	System.out.println("bob has " + bob.getGold() + " gold and " + bob.getWood() + " wood");
-    	
-    	for(Resource resource : state.resources.values()) {
-    		System.out.println(bob.pos.equals(resource.pos));
-    		System.out.println("resource at " + resource.getPos().x + ", " + resource.getPos().y);
-    	}
-    	if(canHarvest()) System.out.println("bob can harvest");
-    	*/
     }
     
     private class Gold extends Resource {
@@ -461,8 +447,7 @@ public class GameState implements Comparable<GameState> {
     }
 
     /**
-     * This is necessary to use your state in the Java priority queue. See the official priority queue and Comparable
-     * interface documentation to learn how this function should work.
+     * Compares based on GameState heuristic
      *
      * @param o The other game state to compare
      * @return 1 if this state costs more than the other, 0 if equal, -1 otherwise
@@ -475,7 +460,7 @@ public class GameState implements Comparable<GameState> {
     }
 
     /**
-     * This will be necessary to use the GameState as a key in a Set or Map.
+     * Defines GameState equality
      *
      * @param o The game state to compare
      * @return True if this state equals the other state, false otherwise.
@@ -496,8 +481,7 @@ public class GameState implements Comparable<GameState> {
     }
 
     /**
-     * This is necessary to use the GameState as a key in a HashSet or HashMap. Remember that if two objects are
-     * equal they should hash to the same value.
+     * Calculates GameState hash
      *
      * @return An integer hashcode that is equal for equal states.
      */
