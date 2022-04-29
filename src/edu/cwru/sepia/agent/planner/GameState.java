@@ -199,7 +199,7 @@ public class GameState implements Comparable<GameState> {
     	public void setId(int id) { this.id = id; }
     	public void setPos(Position pos) { this.pos = pos; }
     	
-    	public void setAmount(int id) { this.amount = amount; }
+    	public void setAmount(int amount) { this.amount = amount; }
     	
     	public boolean empty() { return amount <= 0; }
     }
@@ -374,18 +374,14 @@ public class GameState implements Comparable<GameState> {
     }
 
     /**
-     * Write your heuristic function here. Remember this must be admissible for the properties of A* to hold. If you
-     * can come up with an easy way of computing a consistent heuristic that is even better, but not strictly necessary.
-     *
-     * Add a description here in your submission explaining your heuristic.
+     * Heuristic is a linear sum of quantities that need to be fulfilled
+     * As a result, the heuristic is greater for a less favorable state and lesser for a favorable state
      *
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
     public double heuristic() {
-        // TODO: Implement me!
+
     	if(this.heuristic != 0) return heuristic;
-    	
-    	if(wood > gold) heuristic += 100;
     	
     	if(gold <= requiredGold) heuristic += (requiredGold - gold);
     	else heuristic += (gold - requiredGold);
@@ -403,15 +399,9 @@ public class GameState implements Comparable<GameState> {
     }
 
     /**
-     *
-     * Write the function that computes the current cost to get to this node. This is combined with your heuristic to
-     * determine which actions/states are better to explore.
-     *
      * @return The current cost to reach this goal
      */
     public double getCost() {
-        // TODO: Implement me!
-    	//System.out.println(this.cost);
         return this.cost;
     }
     
@@ -440,13 +430,14 @@ public class GameState implements Comparable<GameState> {
     	Resource resource = this.resources.get(id);
     	if(resource.isGold()) {
     		bob.setGold(Math.min(100, resource.getAmount()));
-    		resource.setAmount(Math.min(0, resource.getAmount() - 100));
+    		resource.setAmount(Math.max(0, resource.getAmount() - 100));
     	}
     	else //harvest wood
     	{
     		bob.setWood(Math.min(100, resource.getAmount()));
-    		resource.setAmount(Math.min(0, resource.getAmount() - 100));
+    		resource.setAmount(Math.max(0, resource.getAmount() - 100));
     	}
+
     }
     
     public void deposit() {
@@ -492,8 +483,6 @@ public class GameState implements Comparable<GameState> {
     @Override
     public boolean equals(Object o) {
         
-    	//System.out.println("equals evals as " + (this == o));
-    	
         if(this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         
@@ -514,7 +503,6 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
-        // TODO: Implement me!
     	final int prime = 31;
     	int hash = 1;
 
