@@ -29,7 +29,7 @@ public class Move implements StripsAction {
 		
 		newState.move(pos);
 		
-		System.out.println("applied move from " + bob.x + ", " + bob.y + " to " + pos.x + ", " + pos.y + " w/cost: " + getCost());
+		//System.out.println("applied move from " + bob.x + ", " + bob.y + " to " + pos.x + ", " + pos.y + " w/cost: " + getCost());
 		
 		return newState;
 	}

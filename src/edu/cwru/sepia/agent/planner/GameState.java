@@ -92,7 +92,6 @@ public class GameState implements Comparable<GameState> {
     		
     		if(r.getType().name().toLowerCase().equals("gold_mine")) {
     			resources.put(r.getID(), new Gold(r.getID(), pos, r.getAmountRemaining()));
-    			System.out.println("gold at " + r.getXPosition() + ", " + r.getYPosition() + " with " + r.getAmountRemaining());
     		}
     		else //name == "wood" 
     		{
@@ -112,8 +111,6 @@ public class GameState implements Comparable<GameState> {
     			bob = new Peasant(u.getID(), pos);
     		}
     	});
-    	
-    	System.out.println(resources.size() + " number of resources");
     	System.out.println("Peasant Bob with ID: " + bob.getId());
     }
     
@@ -239,7 +236,7 @@ public class GameState implements Comparable<GameState> {
     	
     	public boolean hasGold() { return gold > 0; }
     	public boolean hasWood() { return wood > 0; }
-    	public boolean hasSome() { return hasGold() || hasWood(); }
+    	public boolean holdingResource() { return hasGold() || hasWood(); }
     }
     
     /**
@@ -267,16 +264,14 @@ public class GameState implements Comparable<GameState> {
     	
     	GameState child = new GameState(this);
     	
-    	//System.out.println("size " + GameState.resourcePos.size());
-    	System.out.println("state gen " + canHarvest());
+    	//System.out.println("initial state gen can harvest = " + canHarvest());
+    	
     	//if bob has stuff attempt to deposit
-    	if(bob.hasSome()) {
-    		
-    		System.out.println("i have stuff");
+    	if(bob.holdingResource()) {
     		
     		if(bob.getPos().equals(townhallPos)) {
 
-    			Deposit action = new Deposit(bob.getPos(), bob.hasSome());
+    			Deposit action = new Deposit(bob.getPos(), bob.holdingResource());
     			
     			if(action.preconditionsMet(child)) {
     				child = new GameState(action.apply(child));
@@ -296,12 +291,10 @@ public class GameState implements Comparable<GameState> {
     	//if bob dont have stuff attempt to harvest
     	//by checking if bob can harvest
     	else if(canHarvest()) {
-    		
-    		System.out.println("I can harvest");
-    		
+
     		for(Resource resource : this.resources.values()) {
 
-    			Harvest action = new Harvest(bob.getPos(), resource.getPos(), resource.getId(), bob.hasSome(), resource.empty());
+    			Harvest action = new Harvest(bob.getPos(), resource.getPos(), resource.getId(), bob.holdingResource(), resource.empty());
     			
     			if(action.preconditionsMet(child)) {
     				child = new GameState(action.apply(child));
@@ -313,6 +306,7 @@ public class GameState implements Comparable<GameState> {
     	else {
     		
     		for(Resource resource : this.resources.values()) {
+    			if(resource.empty()) continue;
     			
     			GameState grandChild = new GameState(child);
     			
@@ -320,7 +314,7 @@ public class GameState implements Comparable<GameState> {
     			
     			if(action.preconditionsMet(grandChild)) {
     				grandChild = new GameState(action.apply(grandChild));
-    				grandChild.update(child, action);
+    				grandChild.update(grandChild, action);
     			}
     			
     			children.add(grandChild);
@@ -331,7 +325,7 @@ public class GameState implements Comparable<GameState> {
     	
     	GameState grandChild = new GameState(this);
     	
-    	Deposit depAction = new Deposit(bob.getPos(), bob.hasSome());
+    	Deposit depAction = new Deposit(bob.getPos(), bob.holdingResource());
     	
     	if(depAction.preconditionsMet(grandChild)) {
     		grandChild = depAction.apply(grandChild);
@@ -343,8 +337,8 @@ public class GameState implements Comparable<GameState> {
     		
     		StripsAction action = null;
     		
-    		if(bob.getPos().equals(resource.getPos())) {
-    			action = new Harvest(bob.getPos(), resource.getPos(), resource.getId(), bob.hasSome(), resource.empty());
+    		if(canHarvest()) {
+    			action = new Harvest(bob.getPos(), resource.getPos(), resource.getId(), bob.holdingResource(), resource.empty());
     		}
     		else
     		{
@@ -399,7 +393,7 @@ public class GameState implements Comparable<GameState> {
     	if(wood <= requiredWood) heuristic += (requiredWood - wood);
     	else heuristic += (wood - requiredWood);
     	
-    	if(bob.hasSome()) heuristic -= bob.getGold() + bob.getWood();
+    	if(bob.holdingResource()) heuristic -= bob.getGold() + bob.getWood();
     	else {
     		if(canHarvest()) heuristic -= 50;
     		else heuristic += 100;

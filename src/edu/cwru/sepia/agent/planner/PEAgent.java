@@ -91,32 +91,51 @@ public class PEAgent extends Agent {
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
         // TODO: Implement me!
     	// mercy on my soul
-    	
+    	System.out.println();
     	Map<Integer, Action> actions = new HashMap<Integer, Action>();
     	
     	if(plan.isEmpty()) return actions;
     	
-    	if(stateView.getTurnNumber() != 0) {
-    		System.out.println("planning");
-    		actions.put(0, plan.pop().createSepia(1, null));
+    	int lastTurn = stateView.getTurnNumber() - 1;
+    	
+    	if(lastTurn < 0) {
+    		actions.put(1, createSepiaAction(stateView, plan.pop()));
+    		return actions;
     	}
     	
-    	Map<Integer, ActionResult> actionResults = historyView.getCommandFeedback(playernum, stateView.getTurnNumber() - 1);
+    	Map<Integer, ActionResult> actionResults = historyView.getCommandFeedback(playernum, lastTurn);
     	boolean done = false;
+    	
+    	int counter = 0;
+    	
     	while(!done) {
+    		
+    		System.out.println("PEAgent plan action #" + counter);
+    		
     		if(plan.empty()) done = true;
     		else {
-    			StripsAction action = plan.pop();
+    			StripsAction next = plan.peek();
     			ActionResult previous = actionResults.get(1);
     			
-    			if(previous != null && previous.getFeedback() == ActionFeedback.FAILED) {
-    				actions.put(previous.getAction().getUnitId(), previous.getAction());
+    			for(ActionResult result : actionResults.values()) {
+    				System.out.println("plan action #" + counter + " status: " + result);
     			}
     			
-    			actions.put(1, createSepiaAction(stateView, action));
+    			if(!(previous != null && previous.getFeedback() != ActionFeedback.INCOMPLETE)) {
+    				done = true;
+    			}
+    			else if (previous != null && previous.getFeedback() == ActionFeedback.COMPLETED) {    				
+    				actions.put(1, createSepiaAction(stateView, plan.pop()));
+    				done = true;
+    			}
+    			else {
+    				actions.put(1, createSepiaAction(stateView, plan.pop()));
+    				done = true;
+    			}
     		}
+    		
+    		counter++;
     	}
-    	
         return actions;
     }
 
@@ -143,16 +162,21 @@ public class PEAgent extends Agent {
      * @param action StripsAction
      * @return SEPIA representation of same action
      */
-    private Action createSepiaAction(State.StateView state ,StripsAction action) {
-    	//well, i only have one peasant so far and i dont feel like looping for peasants that dont exist
+    private Action createSepiaAction(State.StateView state, StripsAction action) {
+    	//well, this version only has one peasant so i'll keep it simple
     	UnitView peasant = state.getUnit(peasantIdMap.get(1));
     	
-    	if(!action.directed()) return action.createSepia(1, null);
+    	System.out.println(action);
     	
-    	Position peasPos = new Position(peasant.getXPosition(), peasant.getYPosition());
+    	if(!action.directed()) { 
+    		System.out.println("non directed action, bob currently at " + peasant.getXPosition() + " " + peasant.getYPosition());
+    		return action.createSepia(1, null); 
+    	}
+    	
+    	Position pos = new Position(peasant.getXPosition(), peasant.getYPosition());
     	Position goalPos = action.targetPos();
     	
-    	return action.createSepia(peasantIdMap.get(1), peasPos.getDirection(goalPos));
+    	return action.createSepia(peasantIdMap.get(1), pos.getDirection(goalPos));
     }
 
     @Override

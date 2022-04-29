@@ -121,15 +121,15 @@ public class PlannerAgent extends Agent {
     	}
     	*/
     	
-    	PriorityQueue<GameState> frontierQueue = new PriorityQueue<GameState>();
-		Set<GameState> frontierSet = new HashSet<GameState>();
-    	Set<GameState> exploredSet = new HashSet<GameState>();
-    	frontierQueue.add(startState);
-		frontierSet.add(startState);
+    	PriorityQueue<GameState> openQueue = new PriorityQueue<GameState>();
+		Set<GameState> openSet = new HashSet<GameState>();
+    	Set<GameState> closedSet = new HashSet<GameState>();
+    	openQueue.add(startState);
+		openSet.add(startState);
 		
-		while(!frontierQueue.isEmpty()) {
-			GameState current = frontierQueue.remove();
-			frontierSet.remove(current);
+		while(!openQueue.isEmpty()) {
+			GameState current = openQueue.remove();
+			openSet.remove(current);
 			
 			//System.out.println("LOOK AT ME NEW ITERATION OF ASTAR" + current);
 			
@@ -137,39 +137,33 @@ public class PlannerAgent extends Agent {
 				return current.getPlan();
 			}
 			
-			exploredSet.add(current);			
+			closedSet.add(current);			
 			
 			List<GameState> children = current.generateChildren();
 
-			children.stream().forEach(child -> {
-				
-				//System.out.println("child state generated: " + exploredSet.contains(child) + " " + child.hashCode() + " " + child);
-				
-				
-				if(!exploredSet.contains(child)){
-					if(!frontierSet.contains(child)) {
+			for(GameState child : children) {
+				if(!closedSet.contains(child)){
+					if(!openSet.contains(child)) {
 
-						frontierQueue.add(child);
-						frontierSet.add(child);
+						openQueue.add(child);
+						openSet.add(child);
 					} else {
 						GameState first = null;
-						for(GameState possible : frontierSet) {
+						for(GameState possible : openSet) {
 							if(possible.equals(child)) {
 								first = possible;
 							}
 						}
 						if(first.getCost() > child.getCost()) {
-							frontierQueue.remove(first);
-							frontierQueue.add(child);
-							frontierSet.remove(first);
-							frontierSet.add(child);
+							openQueue.remove(first);
+							openQueue.add(child);
+							openSet.remove(first);
+							openSet.add(child);
 						}
 					}
 				}
-			});
-		}
-		
-		
+			}
+		}	
     	return null;
     }
 

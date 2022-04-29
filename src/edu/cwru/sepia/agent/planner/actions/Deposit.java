@@ -9,16 +9,16 @@ public class Deposit implements StripsAction {
 
 	Position bobPos;
 	Position townhallPos = GameState.townhallPos;
-	boolean hasSome;
+	boolean holdingResource;
 	
 	public Deposit(Position bobPos, boolean loaded) {
 		this.bobPos = bobPos;
-		this.hasSome = loaded;
+		this.holdingResource = loaded;
 	}
 	
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		return state.bobPos().equals(townhallPos) && hasSome;
+		return state.bobPos().equals(townhallPos) && holdingResource;
 	}
 
 	@Override
@@ -27,7 +27,7 @@ public class Deposit implements StripsAction {
 		
 		newState.deposit();
 		
-		System.out.println("applied deposit");
+		//System.out.println("applied deposit");
 		
 		return newState;
 	}
